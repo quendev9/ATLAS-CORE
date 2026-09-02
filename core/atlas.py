@@ -1,6 +1,10 @@
 from ai.model import ask_gemini
-from memory.memory import remember, recall, get_all_memories
-from memory.manager import process_memory
+from memory.manager import (
+    process_memory,
+    remember_memory,
+    recall_memory,
+    get_memories
+)
 from core.identity import ATLAS_IDENTITY
 
 
@@ -10,42 +14,100 @@ class Atlas:
         print("ATLAS CORE INITIALIZING")
 
     def process(self, user_input):
+        """
+        Main coordinator for ATLAS.
 
-        if user_input.lower().startswith("remember "):
-            memory_data = user_input[9:]
+        Atlas coordinates the different systems,
+        but does not handle their internal logic.
+        """
 
-            if " is " in memory_data:
-                key, value = memory_data.split(" is ", 1)
+        # -----------------------------------
+        # CLEAN INPUT
+        # -----------------------------------
 
-                remember(key.strip(), value.strip())
+        user_input = user_input.strip()
 
-                return "I'll remember that."
+        if not user_input:
+            return "Please enter a message."
 
-            return "Tell me what to remember using 'remember X is Y'."
+        lowered_input = user_input.lower()
 
-        if user_input.lower().startswith("recall "):
+        # -----------------------------------
+        # EXPLICIT MEMORY COMMAND
+        # -----------------------------------
+
+        if lowered_input.startswith("remember "):
+
+            memory_data = user_input[9:].strip()
+
+            if " is " not in memory_data:
+                return (
+                    "Tell me what to remember using "
+                    "'remember X is Y'."
+                )
+
+            key, value = memory_data.split(" is ", 1)
+
+            key = key.strip()
+            value = value.strip()
+
+            remember_memory(
+                key,
+                value
+            )
+
+            return "I'll remember that."
+
+        # -----------------------------------
+        # RECALL COMMAND
+        # -----------------------------------
+
+        if lowered_input.startswith("recall "):
+
             key = user_input[7:].strip()
 
-            value = recall(key)
+            value = recall_memory(key)
 
-            if value:
-                return value
+            if value is None:
+                return "I don't have that in my memory."
 
-            return "I don't have that in my memory."
+            return value
 
-        process_memory(user_input)
+        # -----------------------------------
+        # AUTOMATIC MEMORY
+        # -----------------------------------
 
-        memories = get_all_memories()
+        memory_result = process_memory(user_input)
+
+        if memory_result:
+
+            return "Got it. I'll remember that."
+
+        # -----------------------------------
+        # MEMORY CONTEXT
+        # -----------------------------------
+
+        memories = get_memories()
 
         memory_context = ""
 
         if memories:
+
             memory_context = (
-                "\n\nRelevant information I remember about the user:\n"
+                "\n\nInformation I remember "
+                "about the user:\n"
             )
 
-            for key, value in memories.items():
-                memory_context += f"- {key}: {value}\n"
+            for memory in memories:
+
+                memory_context += (
+                    f"- {memory['key']}: "
+                    f"{memory['value']}\n"
+                )
+
+        # -----------------------------------
+        # BUILD AI REQUEST
+        # -----------------------------------
 
         prompt = f"""
 {ATLAS_IDENTITY}
@@ -55,5 +117,9 @@ class Atlas:
 User message:
 {user_input}
 """
+
+        # -----------------------------------
+        # AI
+        # -----------------------------------
 
         return ask_gemini(prompt)

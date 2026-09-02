@@ -22,4 +22,4 @@ chat = client.chats.create(
 def ask_gemini(message):
     response = chat.send_message(message)
 
-    return response.textpy
+    return response.text

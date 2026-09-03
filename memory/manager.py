@@ -1,4 +1,10 @@
-from memory.memory import remember, recall, get_all_memories
+from memory.memory import (
+    remember,
+    recall,
+    recall_all,
+    get_by_category,
+    get_all_memories
+)
 
 
 # -----------------------------------
@@ -7,18 +13,41 @@ from memory.memory import remember, recall, get_all_memories
 
 def get_importance(category):
     """
-    Assign an importance score based on memory category.
+    Assign an importance score based
+    on the memory category.
     """
 
     importance_scores = {
+
         "identity": 1.0,
+
         "location": 0.9,
+
         "project": 0.9,
+
+        "goal": 0.9,
+
+        "aspiration": 0.9,
+
         "preference": 0.8,
+
+        "interest": 0.8,
+
+        "likes": 0.8,
+
+        "loves": 0.8,
+
+        "dislikes": 0.8,
+
+        "enjoys": 0.8,
+
         "other": 0.5
     }
 
-    return importance_scores.get(category, 0.5)
+    return importance_scores.get(
+        category,
+        0.5
+    )
 
 
 # -----------------------------------
@@ -32,14 +61,13 @@ def remember_memory(
     importance=None
 ):
     """
-    High-level function for storing a memory.
-
-    The manager decides the importance if one
-    is not provided.
+    High-level interface for storing memory.
     """
 
     if importance is None:
-        importance = get_importance(category)
+        importance = get_importance(
+            category
+        )
 
     remember(
         key,
@@ -58,10 +86,7 @@ def remember_memory(
 
 def recall_memory(key):
     """
-    High-level function for retrieving a memory.
-
-    Normalizes the requested key before
-    searching the storage layer.
+    Retrieve a single memory value.
     """
 
     key = normalize_memory_key(key)
@@ -71,10 +96,18 @@ def recall_memory(key):
 
 def get_memories():
     """
-    High-level function for retrieving all memories.
+    Retrieve every stored memory.
     """
 
     return get_all_memories()
+
+
+def get_memories_by_category(category):
+    """
+    Retrieve memories belonging to a category.
+    """
+
+    return get_by_category(category)
 
 
 # -----------------------------------
@@ -83,9 +116,10 @@ def get_memories():
 
 def detect_memory(user_input):
     """
-    Detect and extract user-relevant information.
+    Detect and classify user-relevant information.
 
     Returns:
+
         (key, value, category)
 
     or:
@@ -108,25 +142,45 @@ def detect_memory(user_input):
 
         value = text[len("my project is "):].strip()
 
-        return "my project", value, "project"
+        if value:
+            return (
+                "projects",
+                value,
+                "project"
+            )
 
     if lowered.startswith("i'm working on "):
 
         value = text[len("i'm working on "):].strip()
 
-        return "current project", value, "project"
+        if value:
+            return (
+                "projects",
+                value,
+                "project"
+            )
 
     if lowered.startswith("im working on "):
 
         value = text[len("im working on "):].strip()
 
-        return "current project", value, "project"
+        if value:
+            return (
+                "projects",
+                value,
+                "project"
+            )
 
     if lowered.startswith("i am working on "):
 
         value = text[len("i am working on "):].strip()
 
-        return "current project", value, "project"
+        if value:
+            return (
+                "projects",
+                value,
+                "project"
+            )
 
     # -----------------------------------
     # LOCATION
@@ -136,7 +190,129 @@ def detect_memory(user_input):
 
         value = text[len("i live in "):].strip()
 
-        return "location", value, "location"
+        if value:
+            return (
+                "location",
+                value,
+                "location"
+            )
+
+    # -----------------------------------
+    # INTEREST
+    # -----------------------------------
+
+    if lowered.startswith("i'm interested in "):
+
+        value = text[
+            len("i'm interested in "):
+        ].strip()
+
+        if value:
+            return (
+                "interests",
+                value,
+                "interest"
+            )
+
+    if lowered.startswith("im interested in "):
+
+        value = text[
+            len("im interested in "):
+        ].strip()
+
+        if value:
+            return (
+                "interests",
+                value,
+                "interest"
+            )
+
+    if lowered.startswith("i am interested in "):
+
+        value = text[
+            len("i am interested in "):
+        ].strip()
+
+        if value:
+            return (
+                "interests",
+                value,
+                "interest"
+            )
+
+    # -----------------------------------
+    # GOALS
+    # -----------------------------------
+
+    if lowered.startswith("my goal is "):
+
+        value = text[len("my goal is "):].strip()
+
+        if value:
+            return (
+                "goals",
+                value,
+                "goal"
+            )
+
+    if lowered.startswith("my goal is to "):
+
+        value = text[len("my goal is to "):].strip()
+
+        if value:
+            return (
+                "goals",
+                value,
+                "goal"
+            )
+
+    if lowered.startswith("i want to "):
+
+        value = text[len("i want to "):].strip()
+
+        if value:
+            return (
+                "goals",
+                value,
+                "goal"
+            )
+
+    # -----------------------------------
+    # ASPIRATIONS
+    # -----------------------------------
+
+    if lowered.startswith("i hope to "):
+
+        value = text[len("i hope to "):].strip()
+
+        if value:
+            return (
+                "aspirations",
+                value,
+                "aspiration"
+            )
+
+    if lowered.startswith("i hope i can "):
+
+        value = text[len("i hope i can "):].strip()
+
+        if value:
+            return (
+                "aspirations",
+                value,
+                "aspiration"
+            )
+
+    if lowered.startswith("i dream of "):
+
+        value = text[len("i dream of "):].strip()
+
+        if value:
+            return (
+                "aspirations",
+                value,
+                "aspiration"
+            )
 
     # -----------------------------------
     # IDENTITY
@@ -146,76 +322,154 @@ def detect_memory(user_input):
 
         value = text[len("my name is "):].strip()
 
-        return "name", value, "identity"
-
-    if lowered.startswith("i am "):
-
-        value = text[len("i am "):].strip()
-
-        return "identity", value, "identity"
-
-    if lowered.startswith("i'm "):
-
-        value = text[len("i'm "):].strip()
-
-        return "identity", value, "identity"
-
-    if lowered.startswith("im "):
-
-        value = text[len("im "):].strip()
-
-        return "identity", value, "identity"
+        if value:
+            return (
+                "name",
+                value,
+                "identity"
+            )
 
     # -----------------------------------
-    # PREFERENCES
+    # FAVORITE / PREFERENCES
     # -----------------------------------
 
     if lowered.startswith("my favorite "):
 
-        remainder = text[len("my favorite "):].strip()
+        remainder = text[
+            len("my favorite "):
+        ].strip()
 
         if " is " in remainder.lower():
 
-            index = remainder.lower().find(" is ")
+            index = remainder.lower().find(
+                " is "
+            )
 
             subject = remainder[:index].strip()
-            value = remainder[index + 4:].strip()
 
-            return (
-                f"favorite {subject}",
-                value,
-                "preference"
-            )
+            value = remainder[
+                index + 4:
+            ].strip()
+
+            if subject and value:
+
+                return (
+                    f"favorite {subject}",
+                    value,
+                    "preference"
+                )
+
+    # -----------------------------------
+    # LIKES
+    # -----------------------------------
 
     if lowered.startswith("i like "):
 
         value = text[len("i like "):].strip()
 
-        return "likes", value, "preference"
+        if value:
+            return (
+                "likes",
+                value,
+                "likes"
+            )
+
+    # -----------------------------------
+    # LOVES
+    # -----------------------------------
 
     if lowered.startswith("i love "):
 
         value = text[len("i love "):].strip()
 
-        return "loves", value, "preference"
+        if value:
+            return (
+                "loves",
+                value,
+                "loves"
+            )
+
+    # -----------------------------------
+    # DISLIKES
+    # -----------------------------------
 
     if lowered.startswith("i hate "):
 
         value = text[len("i hate "):].strip()
 
-        return "dislikes", value, "preference"
+        if value:
+            return (
+                "dislikes",
+                value,
+                "dislikes"
+            )
+
+    # -----------------------------------
+    # PREFERENCES
+    # -----------------------------------
 
     if lowered.startswith("i prefer "):
 
         value = text[len("i prefer "):].strip()
 
-        return "preferences", value, "preference"
+        if value:
+            return (
+                "preferences",
+                value,
+                "preference"
+            )
+
+    # -----------------------------------
+    # ENJOYS
+    # -----------------------------------
 
     if lowered.startswith("i enjoy "):
 
         value = text[len("i enjoy "):].strip()
 
-        return "enjoys", value, "preference"
+        if value:
+            return (
+                "enjoys",
+                value,
+                "enjoys"
+            )
+
+    # -----------------------------------
+    # GENERAL IDENTITY
+    # -----------------------------------
+
+    if lowered.startswith("i am "):
+
+        value = text[len("i am "):].strip()
+
+        if value:
+            return (
+                "identity",
+                value,
+                "identity"
+            )
+
+    if lowered.startswith("i'm "):
+
+        value = text[len("i'm "):].strip()
+
+        if value:
+            return (
+                "identity",
+                value,
+                "identity"
+            )
+
+    if lowered.startswith("im "):
+
+        value = text[len("im "):].strip()
+
+        if value:
+            return (
+                "identity",
+                value,
+                "identity"
+            )
 
     return None
 
@@ -228,12 +482,6 @@ def process_memory(user_input):
     """
     Detect, classify, assign importance,
     and save a memory.
-
-    Returns:
-        A memory dictionary if detected.
-
-    Otherwise:
-        None
     """
 
     result = detect_memory(user_input)
@@ -249,39 +497,86 @@ def process_memory(user_input):
         category
     )
 
+
 # -----------------------------------
-# MEMORY QUERIES
+# NORMALIZATION
 # -----------------------------------
 
 def normalize_memory_key(key):
     """
-    Normalize a memory key so different
-    ways of asking for the same memory
-    can still find it.
+    Normalize a memory key before retrieval.
     """
 
     key = key.strip()
 
     if key.lower().startswith("my "):
+
         key = key[3:].strip()
 
     return key
 
 
+# -----------------------------------
+# MEMORY QUERIES
+# -----------------------------------
+
 def query_memory(user_input):
     """
-    Handle natural-language questions about
-    stored memories.
-
-    Returns:
-        A response string if the memory system
-        can answer the question.
-
-        None if the request is not a memory query.
+    Answer natural-language questions using
+    local memory only.
     """
 
     text = user_input.strip()
+
     lowered = text.lower()
+
+    # -----------------------------------
+    # FAVORITES
+    # -----------------------------------
+
+    if lowered in [
+        "what are my favorites",
+        "what are my favorites?"
+    ]:
+
+        memories = get_memories_by_category(
+            "preference"
+        )
+
+        if not memories:
+
+            return (
+                "I don't have any favorites "
+                "stored in my memory."
+            )
+
+        responses = []
+
+        for memory in memories:
+
+            key = memory["key"]
+
+            value = memory["value"]
+
+            if key.startswith("favorite "):
+
+                subject = key[
+                    len("favorite "):
+                ]
+
+                responses.append(
+                    f"Your favorite "
+                    f"{subject} is {value}."
+                )
+
+        if not responses:
+
+            return (
+                "I don't have any favorites "
+                "stored in my memory."
+            )
+
+        return " ".join(responses)
 
     # -----------------------------------
     # WHAT DO I LIKE?
@@ -294,38 +589,69 @@ def query_memory(user_input):
         "what do you know i like?"
     ]:
 
-        memories = get_memories()
-
-        preferences = [
-            memory
-            for memory in memories
-            if memory["category"] == "preference"
+        categories = [
+            "preference",
+            "likes",
+            "loves",
+            "dislikes",
+            "enjoys"
         ]
 
-        if not preferences:
-            return "I don't have any preferences about you in my memory."
+        memories = [
+            memory
+            for memory in get_memories()
+            if memory["category"]
+            in categories
+        ]
+
+        if not memories:
+
+            return (
+                "I don't have any preferences "
+                "about you in my memory."
+            )
 
         responses = []
 
-        for memory in preferences:
+        for memory in memories:
 
             key = memory["key"]
+
             value = memory["value"]
 
             if key == "likes":
-                responses.append(f"You like {value}.")
-            elif key == "loves":
-                responses.append(f"You love {value}.")
-            elif key == "enjoys":
-                responses.append(f"You enjoy {value}.")
-            elif key == "dislikes":
-                responses.append(f"You dislike {value}.")
-            elif key == "preferences":
-                responses.append(f"You prefer {value}.")
-            elif key.startswith("favorite "):
-                subject = key[len("favorite "):]
+
                 responses.append(
-                    f"Your favorite {subject} is {value}."
+                    f"You like {value}."
+                )
+
+            elif key == "loves":
+
+                responses.append(
+                    f"You love {value}."
+                )
+
+            elif key == "dislikes":
+
+                responses.append(
+                    f"You dislike {value}."
+                )
+
+            elif key == "enjoys":
+
+                responses.append(
+                    f"You enjoy {value}."
+                )
+
+            elif key.startswith("favorite "):
+
+                subject = key[
+                    len("favorite "):
+                ]
+
+                responses.append(
+                    f"Your favorite "
+                    f"{subject} is {value}."
                 )
 
         return " ".join(responses)
@@ -335,31 +661,225 @@ def query_memory(user_input):
     # -----------------------------------
 
     if (
-        lowered.startswith("what is my favorite ")
-        or lowered.startswith("what's my favorite ")
+        lowered.startswith(
+            "what is my favorite "
+        )
+        or lowered.startswith(
+            "what's my favorite "
+        )
     ):
 
-        if lowered.startswith("what is my favorite "):
-            subject = text[len("what is my favorite "):].strip()
-        else:
-            subject = text[len("what's my favorite "):].strip()
+        if lowered.startswith(
+            "what is my favorite "
+        ):
 
-        subject = subject.rstrip("?").strip()
+            subject = text[
+                len("what is my favorite "):
+            ].strip()
+
+        else:
+
+            subject = text[
+                len("what's my favorite "):
+            ].strip()
+
+        subject = subject.rstrip(
+            "?"
+        ).strip()
 
         if not subject:
             return None
 
-        key = f"favorite {subject}"
-
-        value = recall_memory(key)
+        value = recall_memory(
+            f"favorite {subject}"
+        )
 
         if value is None:
-            return f"I don't have your favorite {subject} in my memory."
 
-        return f"Your favorite {subject} is {value}."
+            return (
+                f"I don't have your favorite "
+                f"{subject} in my memory."
+            )
+
+        return (
+            f"Your favorite {subject} "
+            f"is {value}."
+        )
 
     # -----------------------------------
-    # WHAT DO YOU REMEMBER ABOUT ME?
+    # NAME
+    # -----------------------------------
+
+    if lowered in [
+        "what is my name",
+        "what is my name?",
+        "what's my name",
+        "what's my name?"
+    ]:
+
+        value = recall_memory("name")
+
+        if value is None:
+
+            return (
+                "I don't have your name "
+                "in my memory."
+            )
+
+        return f"Your name is {value}."
+
+    # -----------------------------------
+    # LOCATION
+    # -----------------------------------
+
+    if lowered in [
+        "where do i live",
+        "where do i live?"
+    ]:
+
+        value = recall_memory("location")
+
+        if value is None:
+
+            return (
+                "I don't have your location "
+                "in my memory."
+            )
+
+        return f"You live in {value}."
+
+    # -----------------------------------
+    # PROJECTS
+    # -----------------------------------
+
+    if lowered in [
+        "what projects am i working on",
+        "what projects am i working on?",
+        "what projects do i have",
+        "what projects do i have?"
+    ]:
+
+        projects = get_memories_by_category(
+            "project"
+        )
+
+        if not projects:
+
+            return (
+                "I don't have any projects "
+                "stored in my memory."
+            )
+
+        values = [
+            project["value"]
+            for project in projects
+        ]
+
+        return (
+            "Your projects include: "
+            + ", ".join(values)
+            + "."
+        )
+
+    # -----------------------------------
+    # INTERESTS
+    # -----------------------------------
+
+    if lowered in [
+        "what am i interested in",
+        "what am i interested in?",
+        "what are my interests",
+        "what are my interests?"
+    ]:
+
+        interests = get_memories_by_category(
+            "interest"
+        )
+
+        if not interests:
+
+            return (
+                "I don't have any interests "
+                "about you in my memory."
+            )
+
+        values = [
+            interest["value"]
+            for interest in interests
+        ]
+
+        return (
+            "You're interested in: "
+            + ", ".join(values)
+            + "."
+        )
+
+    # -----------------------------------
+    # GOALS
+    # -----------------------------------
+
+    if lowered in [
+        "what are my goals",
+        "what are my goals?",
+        "what are my goals in life",
+        "what are my goals in life?"
+    ]:
+
+        goals = get_memories_by_category(
+            "goal"
+        )
+
+        if not goals:
+
+            return (
+                "I don't have any goals "
+                "stored in my memory."
+            )
+
+        values = [
+            goal["value"]
+            for goal in goals
+        ]
+
+        return (
+            "Your goals include: "
+            + ", ".join(values)
+            + "."
+        )
+
+    # -----------------------------------
+    # ASPIRATIONS
+    # -----------------------------------
+
+    if lowered in [
+        "what are my aspirations",
+        "what are my aspirations?"
+    ]:
+
+        aspirations = get_memories_by_category(
+            "aspiration"
+        )
+
+        if not aspirations:
+
+            return (
+                "I don't have any aspirations "
+                "stored in my memory."
+            )
+
+        values = [
+            aspiration["value"]
+            for aspiration in aspirations
+        ]
+
+        return (
+            "Your aspirations include: "
+            + ", ".join(values)
+            + "."
+        )
+
+    # -----------------------------------
+    # EVERYTHING
     # -----------------------------------
 
     if lowered in [
@@ -370,14 +890,19 @@ def query_memory(user_input):
         memories = get_memories()
 
         if not memories:
-            return "I don't have anything stored about you yet."
+
+            return (
+                "I don't have anything stored "
+                "about you yet."
+            )
 
         responses = []
 
         for memory in memories:
 
             responses.append(
-                f"- {memory['key']}: {memory['value']}"
+                f"- {memory['key']}: "
+                f"{memory['value']}"
             )
 
         return (
@@ -386,44 +911,3 @@ def query_memory(user_input):
         )
 
     return None
-
-# -----------------------------------
-# TESTING
-# -----------------------------------
-
-if __name__ == "__main__":
-
-    print("MEMORY MANAGER TEST")
-    print("-------------------")
-
-    test_inputs = [
-        "My favorite color is blue",
-        "My name is Quen",
-        "I live in New York City",
-        "My project is ATLAS",
-        "I like robotics",
-        "I love building robots",
-        "I am an engineering student",
-        "I'm working on ATLAS",
-        "The sky is blue"
-    ]
-
-    for user_input in test_inputs:
-
-        print(f"\nInput: {user_input}")
-
-        result = process_memory(user_input)
-
-        if result:
-
-            print(
-                f"[MEMORY] Saved "
-                f"({result['category']}, "
-                f"importance={result['importance']}): "
-                f"{result['key']} → "
-                f"{result['value']}"
-            )
-
-        else:
-
-            print("No memory detected.")

@@ -1,12 +1,14 @@
 from ai.model import ask_gemini
+
 from memory.manager import (
     process_memory,
     remember_memory,
     recall_memory,
-    get_memories
+    get_memories,
+    query_memory
 )
-from core.identity import ATLAS_IDENTITY
 
+from core.identity import ATLAS_IDENTITY
 
 class Atlas:
 
@@ -72,6 +74,15 @@ class Atlas:
                 return "I don't have that in my memory."
 
             return value
+
+        # -----------------------------------
+        # NATURAL MEMORY QUERY
+        # -----------------------------------
+
+        memory_response = query_memory(user_input)
+
+        if memory_response is not None:
+            return memory_response
 
         # -----------------------------------
         # AUTOMATIC MEMORY

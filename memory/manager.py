@@ -59,7 +59,12 @@ def remember_memory(
 def recall_memory(key):
     """
     High-level function for retrieving a memory.
+
+    Normalizes the requested key before
+    searching the storage layer.
     """
+
+    key = normalize_memory_key(key)
 
     return recall(key)
 
@@ -244,6 +249,143 @@ def process_memory(user_input):
         category
     )
 
+# -----------------------------------
+# MEMORY QUERIES
+# -----------------------------------
+
+def normalize_memory_key(key):
+    """
+    Normalize a memory key so different
+    ways of asking for the same memory
+    can still find it.
+    """
+
+    key = key.strip()
+
+    if key.lower().startswith("my "):
+        key = key[3:].strip()
+
+    return key
+
+
+def query_memory(user_input):
+    """
+    Handle natural-language questions about
+    stored memories.
+
+    Returns:
+        A response string if the memory system
+        can answer the question.
+
+        None if the request is not a memory query.
+    """
+
+    text = user_input.strip()
+    lowered = text.lower()
+
+    # -----------------------------------
+    # WHAT DO I LIKE?
+    # -----------------------------------
+
+    if lowered in [
+        "what do i like",
+        "what do i like?",
+        "what do you know i like",
+        "what do you know i like?"
+    ]:
+
+        memories = get_memories()
+
+        preferences = [
+            memory
+            for memory in memories
+            if memory["category"] == "preference"
+        ]
+
+        if not preferences:
+            return "I don't have any preferences about you in my memory."
+
+        responses = []
+
+        for memory in preferences:
+
+            key = memory["key"]
+            value = memory["value"]
+
+            if key == "likes":
+                responses.append(f"You like {value}.")
+            elif key == "loves":
+                responses.append(f"You love {value}.")
+            elif key == "enjoys":
+                responses.append(f"You enjoy {value}.")
+            elif key == "dislikes":
+                responses.append(f"You dislike {value}.")
+            elif key == "preferences":
+                responses.append(f"You prefer {value}.")
+            elif key.startswith("favorite "):
+                subject = key[len("favorite "):]
+                responses.append(
+                    f"Your favorite {subject} is {value}."
+                )
+
+        return " ".join(responses)
+
+    # -----------------------------------
+    # FAVORITE X
+    # -----------------------------------
+
+    if (
+        lowered.startswith("what is my favorite ")
+        or lowered.startswith("what's my favorite ")
+    ):
+
+        if lowered.startswith("what is my favorite "):
+            subject = text[len("what is my favorite "):].strip()
+        else:
+            subject = text[len("what's my favorite "):].strip()
+
+        subject = subject.rstrip("?").strip()
+
+        if not subject:
+            return None
+
+        key = f"favorite {subject}"
+
+        value = recall_memory(key)
+
+        if value is None:
+            return f"I don't have your favorite {subject} in my memory."
+
+        return f"Your favorite {subject} is {value}."
+
+    # -----------------------------------
+    # WHAT DO YOU REMEMBER ABOUT ME?
+    # -----------------------------------
+
+    if lowered in [
+        "what do you remember about me",
+        "what do you remember about me?"
+    ]:
+
+        memories = get_memories()
+
+        if not memories:
+            return "I don't have anything stored about you yet."
+
+        responses = []
+
+        for memory in memories:
+
+            responses.append(
+                f"- {memory['key']}: {memory['value']}"
+            )
+
+        return (
+            "Here's what I remember about you:\n"
+            + "\n".join(responses)
+        )
+
+    return None
 
 # -----------------------------------
 # TESTING

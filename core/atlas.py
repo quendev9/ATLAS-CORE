@@ -1,3 +1,5 @@
+import re
+
 from ai.model import ask_gemini
 
 from memory.manager import (
@@ -5,7 +7,7 @@ from memory.manager import (
     remember_memory,
     recall_memory,
     get_memories,
-    query_memory
+    query_memory,
 )
 
 from core.identity import ATLAS_IDENTITY
@@ -15,194 +17,87 @@ from core.router import classify_input
 class Atlas:
 
     def __init__(self):
-
         print("ATLAS CORE INITIALIZING")
 
     def process(self, user_input):
-        """
-        Main coordinator for ATLAS.
-
-        Atlas determines what type of request
-        it received and sends the request to
-        the appropriate subsystem.
-        """
-
-        # -----------------------------------
-        # CLEAN INPUT
-        # -----------------------------------
+        """Main coordinator for ATLAS."""
+        if not isinstance(user_input, str):
+            return "Please enter a message."
 
         user_input = user_input.strip()
-
         if not user_input:
-
             return "Please enter a message."
 
-        # -----------------------------------
-        # ROUTE REQUEST
-        # -----------------------------------
-
-        request_type = classify_input(
-            user_input
-        )
-
-        # -----------------------------------
-        # EMPTY
-        # -----------------------------------
+        request_type = classify_input(user_input)
 
         if request_type == "EMPTY":
-
             return "Please enter a message."
 
-        # -----------------------------------
-        # MEMORY COMMAND
-        # -----------------------------------
-
         if request_type == "MEMORY_COMMAND":
+            remember_match = re.match(
+                r"^remember\s+(.+?)\s+is\s+(.+)$",
+                user_input,
+                re.IGNORECASE,
+            )
 
-            lowered_input = user_input.lower()
-
-            # -------------------------------
-            # REMEMBER
-            # -------------------------------
-
-            if lowered_input.startswith(
-                "remember "
-            ):
-
-                memory_data = user_input[
-                    len("remember "):
-                ].strip()
-
-                if " is " not in memory_data:
-
-                    return (
-                        "Tell me what to remember "
-                        "using 'remember X is Y'."
-                    )
-
-                key, value = memory_data.split(
-                    " is ",
-                    1
-                )
-
-                key = key.strip()
-
-                value = value.strip()
-
+            if remember_match:
+                key = remember_match.group(1).strip()
+                value = remember_match.group(2).strip()
                 if not key or not value:
-
-                    return (
-                        "Tell me both the memory "
-                        "key and its value."
-                    )
-
-                remember_memory(
-                    key,
-                    value
-                )
-
+                    return "Tell me both the memory key and its value."
+                remember_memory(key, value)
                 return "I'll remember that."
 
-            # -------------------------------
-            # RECALL
-            # -------------------------------
+            recall_match = re.match(
+                r"^recall\s+(.+)$",
+                user_input,
+                re.IGNORECASE,
+            )
 
-            if lowered_input.startswith(
-                "recall "
-            ):
-
-                key = user_input[
-                    len("recall "):
-                ].strip()
-
+            if recall_match:
+                key = recall_match.group(1).strip()
                 if not key:
-
-                    return (
-                        "Tell me what you want "
-                        "me to recall."
-                    )
+                    return "Tell me what you want me to recall."
 
                 value = recall_memory(key)
-
                 if value is None:
-
-                    return (
-                        "I don't have that "
-                        "in my memory."
-                    )
-
+                    return "I don't have that in my memory."
                 return value
 
-        # -----------------------------------
-        # MEMORY QUERY
-        # -----------------------------------
+            return "Use memory commands like 'remember X is Y' or 'recall X'."
 
         if request_type == "MEMORY_QUERY":
-
-            memory_response = query_memory(
-                user_input
-            )
-
+            memory_response = query_memory(user_input)
             if memory_response is not None:
-
                 return memory_response
 
-        # -----------------------------------
-        # MEMORY STATEMENT
-        # -----------------------------------
-
-        if request_type == "MEMORY_STATEMENT":
-
-            memory_result = process_memory(
-                user_input
-            )
-
+        if request_type == "MEMORY_CANDIDATE":
+            memory_result = process_memory(user_input)
             if memory_result:
+                return "Got it. I'll remember that."
 
-                return (
-                    "Got it. I'll remember that."
-                )
-
-        # -----------------------------------
-        # AI REQUEST
-        # -----------------------------------
-
-        if request_type == "AI_REQUEST":
-
-            memories = get_memories()
-
+        if request_type in ("AI_REQUEST", "MEMORY_CANDIDATE"):
+            memories = get_memories() or []
             memory_context = ""
 
-            if memories:
+            for memory in memories:
+                if not isinstance(memory, dict):
+                    continue
 
-                memory_context = (
-                    "\n\nInformation I remember "
-                    "about the user:\n"
-                )
+                key = memory.get("key", "unknown")
+                value = memory.get("value", "")
 
-                for memory in memories:
+                if not memory_context:
+                    memory_context = "\n\nInformation I remember about the user:\n"
 
-                    memory_context += (
-                        f"- {memory['key']}: "
-                        f"{memory['value']}\n"
-                    )
+                memory_context += f"- {key}: {value}\n"
 
             prompt = f"""
 {ATLAS_IDENTITY}
-
 {memory_context}
-
 User message:
 {user_input}
 """
-
             return ask_gemini(prompt)
 
-        # -----------------------------------
-        # FALLBACK
-        # -----------------------------------
-
-        return (
-            "I'm not sure how to handle "
-            "that request."
-        )
+        return "I'm not sure how to handle that request."

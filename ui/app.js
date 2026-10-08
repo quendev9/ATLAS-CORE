@@ -114,7 +114,7 @@ if (expandChatButton) {
 
 
 // ==================================================
-// HUD HELPER FUNCTIONS
+// HUD HELPERS
 // ==================================================
 
 function setText(id, value) {
@@ -170,7 +170,7 @@ async function updateHUDStatus() {
 
 
         // ------------------------------------------
-        // CORE STATUS
+        // CORE
         // ------------------------------------------
 
         setText(
@@ -180,7 +180,7 @@ async function updateHUDStatus() {
 
 
         // ------------------------------------------
-        // AI STATUS
+        // AI
         // ------------------------------------------
 
         setText(
@@ -190,7 +190,7 @@ async function updateHUDStatus() {
 
 
         // ------------------------------------------
-        // MEMORY STATUS
+        // MEMORY
         // ------------------------------------------
 
         setText(
@@ -200,7 +200,7 @@ async function updateHUDStatus() {
 
 
         // ------------------------------------------
-        // TOOLS STATUS
+        // TOOLS
         // ------------------------------------------
 
         setText(
@@ -213,9 +213,7 @@ async function updateHUDStatus() {
         // MEMORY COUNT
         // ------------------------------------------
 
-        if (
-            typeof data.memory_count === "number"
-        ) {
+        if (typeof data.memory_count === "number") {
             setText(
                 "memoryCount",
                 data.memory_count
@@ -268,9 +266,6 @@ async function updateHUDStatus() {
         // ------------------------------------------
         // CORE DISPLAY
         // ------------------------------------------
-        // We do not invent a fake percentage here.
-        // The Core currently exposes a real status,
-        // not a CPU/activity percentage.
 
         setText(
             "coreValue",
@@ -279,7 +274,7 @@ async function updateHUDStatus() {
 
 
         // ------------------------------------------
-        // CONNECTION STATE
+        // CONNECTION
         // ------------------------------------------
 
         document.body.classList.remove(
@@ -291,10 +286,6 @@ async function updateHUDStatus() {
             "ATLAS STATUS ERROR:",
             error
         );
-
-        // ------------------------------------------
-        // BACKEND OFFLINE
-        // ------------------------------------------
 
         setText(
             "coreStatus",
@@ -329,19 +320,86 @@ async function updateHUDStatus() {
 
 
 // ==================================================
-// START LIVE TELEMETRY
+// LIVE SYSTEM LOG
+// ==================================================
+
+async function updateSystemLog() {
+    const logContainer =
+        document.querySelector(".system-log");
+
+    if (!logContainer) {
+        console.warn(
+            "ATLAS SYSTEM LOG: container not found."
+        );
+
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/logs", {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Log request failed (${response.status})`
+            );
+        }
+
+        const data = await response.json();
+
+        console.log("ATLAS LOGS:", data);
+
+        if (!Array.isArray(data.logs)) {
+            console.warn(
+                "ATLAS SYSTEM LOG: invalid log format."
+            );
+
+            return;
+        }
+
+        logContainer.innerHTML = "";
+
+        data.logs.forEach((entry) => {
+            const line = document.createElement("div");
+
+            line.className = "system-log-entry";
+
+            line.textContent =
+                `${entry.time}  ${entry.message}`;
+
+            logContainer.appendChild(line);
+        });
+
+    } catch (error) {
+        console.error(
+            "ATLAS LOG ERROR:",
+            error
+        );
+    }
+}
+
+
+// ==================================================
+// START LIVE SYSTEMS
 // ==================================================
 
 updateHUDStatus();
+updateSystemLog();
 
 setInterval(
     updateHUDStatus,
     1000
 );
 
+setInterval(
+    updateSystemLog,
+    1000
+);
+
 
 // ==================================================
-// INITIAL SYSTEM MESSAGE
+// INITIAL MESSAGE
 // ==================================================
 
 addMessage(

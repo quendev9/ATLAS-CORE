@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ATLAS HUD</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+
+<body>
+
+    <!-- =====================================================
+         BACKGROUND
+    ====================================================== -->
+
+    <div class="grid"></div>
+
+    <div class="ambient-glow"></div>
+
+
+    <!-- =====================================================
+         MAIN HUD
+    ====================================================== -->
+
+    <main class="hud">
+
+
+        <!-- =================================================
+             TOP BAR
+        ================================================== -->
+
+        <header class="top-bar">
+
+            <div class="brand">
+
+                <div class="brand-mark">
+                    A
+                </div>
+
+
+                <div>
+
+                    <div class="brand-name">
+                        ATLAS
+                    </div>
+
+                    <div class="brand-subtitle">
+                        ADAPTIVE TECHNOLOGY & LEARNING AUTONOMOUS SYSTEM
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="system-status">
+
+                <span class="status-dot"></span>
+
+                <span>
+                    CORE ONLINE
+                </span>
+
+            </div>
+
+        </header>
+
+
+
+        <!-- =================================================
+             MAIN WORKSPACE
+        ================================================== -->
+
+        <section class="workspace">
+
+
+            <!-- =============================================
+                 LEFT PANEL
+            ============================================== -->
+
+            <aside class="left-panel">
+
+
+                <div class="panel-label">
+                    SYSTEM
+                </div>
+
+
+                <div class="system-item">
+
+                    <span>
+                        CORE
+                    </span>
+
+                    <span
+                        id="coreStatus"
+                        class="online"
+                    >
+                        CONNECTING
+                    </span>
+
+                </div>
+
+
+                <div class="system-item">
+
+                    <span>
+                        AI
+                    </span>
+
+                    <span
+                        id="aiStatus"
+                        class="online"
+                    >
+                        CHECKING
+                    </span>
+
+                </div>
+
+
+                <div class="system-item">
+
+                    <span>
+                        MEMORY
+                    </span>
+
+                    <span
+                        id="memoryStatus"
+                        class="online"
+                    >
+                        CHECKING
+                    </span>
+
+                </div>
+
+
+                <div class="system-item">
+
+                    <span>
+                        TOOLS
+                    </span>
+
+                    <span
+                        id="toolsStatus"
+                        class="offline"
+                    >
+                        CHECKING
+                    </span>
+
+                </div>
+
+
+
+                <div class="panel-divider"></div>
+
+
+
+                <div class="panel-label">
+                    CURRENT PROJECT
+                </div>
+
+
+                <div class="project-card">
+
+                    <div class="project-name">
+                        PROJECT-ATLAS
+                    </div>
+
+
+                    <div class="project-status">
+                        CORE DEVELOPMENT
+                    </div>
+
+
+                    <div class="project-line"></div>
+
+
+                    <div class="project-data">
+
+                        <span>
+                            STATUS
+                        </span>
+
+                        <span>
+                            ACTIVE
+                        </span>
+
+                    </div>
+
+
+                    <div class="project-data">
+
+                        <span>
+                            BUILD
+                        </span>
+
+                        <span>
+                            CORE
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </aside>
+
+
+
+            <!-- =============================================
+                 CENTRAL ATLAS CORE
+            ============================================== -->
+
+            <section class="core-area">
+
+
+                <div
+                    class="core-ring ring-outer"
+                ></div>
+
+
+                <div
+                    class="core-ring ring-middle"
+                ></div>
+
+
+                <div
+                    class="core-ring ring-inner"
+                ></div>
+
+
+
+                <div class="core-center">
+
+                    <div class="core-symbol">
+                        A
+                    </div>
+
+
+                    <div class="core-name">
+                        ATLAS
+                    </div>
+
+
+                    <div class="core-state">
+                        SYSTEM READY
+                    </div>
+
+                </div>
+
+
+
+                <div class="core-data data-top">
+                    CORE
+                </div>
+
+
+                <div class="core-data data-left">
+                    AI
+                </div>
+
+
+                <div class="core-data data-right">
+                    MEMORY
+                </div>
+
+
+                <div class="core-data data-bottom">
+                    TOOLS
+                </div>
+
+            </section>
+
+
+
+            <!-- =============================================
+                 RIGHT PANEL
+            ============================================== -->
+
+            <aside class="right-panel">
+
+
+                <div class="panel-label">
+                    SYSTEM TELEMETRY
+                </div>
+
+
+                <div class="telemetry">
+
+
+                    <div class="telemetry-row">
+
+                        <span>
+                            CPU
+                        </span>
+
+
+                        <div class="meter">
+
+                            <div
+                                id="cpuMeter"
+                                class="meter-fill"
+                                style="width: 0%;"
+                            ></div>
+
+                        </div>
+
+
+                        <span id="cpuValue">
+                            --
+                        </span>
+
+                    </div>
+
+
+
+                    <div class="telemetry-row">
+
+                        <span>
+                            RAM
+                        </span>
+
+
+                        <div class="meter">
+
+                            <div
+                                id="ramMeter"
+                                class="meter-fill"
+                                style="width: 0%;"
+                            ></div>
+
+                        </div>
+
+
+                        <span id="ramValue">
+                            --
+                        </span>
+
+                    </div>
+
+
+
+                    <div class="telemetry-row">
+
+                        <span>
+                            CORE
+                        </span>
+
+
+                        <div class="meter">
+
+                            <div
+                                id="coreMeter"
+                                class="meter-fill"
+                                style="width: 0%;"
+                            ></div>
+
+                        </div>
+
+
+                        <span id="coreValue">
+                            --
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="panel-divider"></div>
+
+
+
+                <div class="panel-label">
+                    MEMORY
+                </div>
+
+
+                <div class="memory-status">
+
+                    <div
+                        id="memoryCount"
+                        class="memory-number"
+                    >
+                        --
+                    </div>
+
+
+                    <div class="memory-text">
+                        STORED MEMORIES
+                    </div>
+
+                </div>
+
+
+
+                <div class="panel-divider"></div>
+
+
+
+                <div class="panel-label">
+                    CONNECTION
+                </div>
+
+
+                <div class="connection">
+
+                    <span class="status-dot"></span>
+
+                    <span>
+                        LOCAL CORE
+                    </span>
+
+                </div>
+
+            </aside>
+
+        </section>
+
+
+
+        <!-- =================================================
+             CONVERSATION
+        ================================================== -->
+
+        <section
+            id="conversation"
+            class="conversation"
+        >
+
+
+            <!-- HEADER -->
+
+            <div class="conversation-header">
+
+                <span>
+                    ATLAS INTERFACE
+                </span>
+
+
+                <div class="conversation-controls">
+
+                    <span class="conversation-state">
+                        LISTENING
+                    </span>
+
+
+                    <button
+                        id="expandChatButton"
+                        class="expand-chat-button"
+                        type="button"
+                    >
+                        EXPAND
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- MESSAGES -->
+
+            <div
+                id="messages"
+                class="messages"
+            >
+
+                <div class="message atlas-message">
+
+                    <div class="message-label">
+                        ATLAS
+                    </div>
+
+
+                    <div class="message-text">
+                        ATLAS Core initialized. Awaiting input.
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- COMMAND INPUT -->
+
+            <div class="input-area">
+
+                <div class="input-prefix">
+                    >
+                </div>
+
+
+                <input
+                    id="commandInput"
+                    type="text"
+                    placeholder="Speak to ATLAS..."
+                    autocomplete="off"
+                >
+
+
+                <button id="sendButton">
+                    SEND
+                </button>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             SYSTEM LOG
+        ================================================== -->
+
+        <footer class="system-log">
+
+            <div>
+
+                <span class="log-time">
+                    SYSTEM
+                </span>
+
+                CORE INITIALIZED
+
+            </div>
+
+
+            <div>
+
+                <span class="log-time">
+                    SYSTEM
+                </span>
+
+                AI MODULE READY
+
+            </div>
+
+
+            <div>
+
+                <span class="log-time">
+                    SYSTEM
+                </span>
+
+                MEMORY MODULE ACTIVE
+
+            </div>
+
+
+            <div class="log-live">
+                LIVE
+            </div>
+
+        </footer>
+
+
+    </main>
+
+
+
+    <!-- =====================================================
+         JAVASCRIPT
+    ====================================================== -->
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>

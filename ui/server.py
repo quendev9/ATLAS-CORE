@@ -1,7 +1,6 @@
 import json
 import sys
 import time
-import threading
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,6 +21,9 @@ sys.path.insert(0, str(PROJECT_DIR))
 # ---------------------------------------------------------
 # ATLAS IMPORTS
 # ---------------------------------------------------------
+
+from core.event_logger import get_events, log_event
+
 
 try:
     from core.atlas import Atlas
@@ -73,32 +75,6 @@ if ATLAS_AVAILABLE:
 # ---------------------------------------------------------
 
 START_TIME = time.time()
-
-LOGS = []
-
-LOG_LOCK = threading.Lock()
-
-
-# ---------------------------------------------------------
-# LOGGING
-# ---------------------------------------------------------
-
-def add_log(message):
-
-    timestamp = time.strftime("%H:%M:%S")
-
-    entry = {
-        "time": timestamp,
-        "message": message,
-    }
-
-    with LOG_LOCK:
-
-        LOGS.append(entry)
-
-        if len(LOGS) > 50:
-            LOGS.pop(0)
-
 
 # ---------------------------------------------------------
 # MEMORY
@@ -276,13 +252,10 @@ class AtlasHandler(BaseHTTPRequestHandler):
 
         if self.path == "/api/logs":
 
-            with LOG_LOCK:
-                logs = list(LOGS)
-
             send_json(
                 self,
                 {
-                    "logs": logs
+                    "logs": get_events()
                 }
             )
 
@@ -392,7 +365,13 @@ class AtlasHandler(BaseHTTPRequestHandler):
             return
 
 
+        log_event("USER INPUT RECEIVED")
+        log_event("REQUEST PROCESSING")
+
+
         if not ATLAS_AVAILABLE or atlas is None:
+
+            log_event("ATLAS PROCESS FAILED")
 
             send_json(
                 self,
@@ -405,10 +384,7 @@ class AtlasHandler(BaseHTTPRequestHandler):
             return
 
 
-        add_log(
-            f"USER INPUT: {user_input}"
-        )
-
+        log_event("ATLAS PROCESS STARTED")
 
         try:
 
@@ -426,31 +402,14 @@ class AtlasHandler(BaseHTTPRequestHandler):
 
             response = str(response)
 
-
-            add_log(
-                "ATLAS RESPONSE GENERATED"
-            )
-
-
-            send_json(
-                self,
-                {
-                    "response": response
-                }
-            )
-
-
         except Exception as error:
 
             print(
                 "ATLAS PROCESS ERROR:",
-                error
+                type(error).__name__
             )
 
-            add_log(
-                "ATLAS PROCESS ERROR"
-            )
-
+            log_event("ATLAS PROCESS FAILED")
 
             send_json(
                 self,
@@ -462,6 +421,18 @@ class AtlasHandler(BaseHTTPRequestHandler):
                 },
                 500
             )
+            return
+
+        log_event("ATLAS PROCESS COMPLETED")
+
+        send_json(
+            self,
+            {
+                "response": response
+            }
+        )
+
+        log_event("RESPONSE DELIVERED")
 
 
     # -----------------------------------------------------
@@ -512,51 +483,51 @@ class AtlasHandler(BaseHTTPRequestHandler):
 
 def main():
 
-    add_log(
+    log_event(
         "ATLAS HUD SERVER INITIALIZED"
     )
 
 
     if ATLAS_AVAILABLE and atlas:
 
-        add_log(
+        log_event(
             "ATLAS CORE CONNECTED"
         )
 
     else:
 
-        add_log(
+        log_event(
             "ATLAS CORE UNAVAILABLE"
         )
 
 
     if MEMORY_AVAILABLE:
 
-        add_log(
+        log_event(
             "MEMORY MODULE CONNECTED"
         )
 
     else:
 
-        add_log(
+        log_event(
             "MEMORY MODULE UNAVAILABLE"
         )
 
 
     if AI_AVAILABLE:
 
-        add_log(
+        log_event(
             "AI MODULE DETECTED"
         )
 
     else:
 
-        add_log(
+        log_event(
             "AI MODULE UNAVAILABLE"
         )
 
 
-    add_log(
+    log_event(
         "SYSTEM TELEMETRY ONLINE"
     )
 

@@ -360,7 +360,9 @@ async function updateSystemLog() {
 
         logContainer.innerHTML = "";
 
-        data.logs.forEach((entry) => {
+        const recentLogs = data.logs.slice(-6);
+
+        recentLogs.forEach((entry) => {
             const line = document.createElement("div");
 
             line.className = "system-log-entry";

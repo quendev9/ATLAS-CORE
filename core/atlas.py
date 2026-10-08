@@ -13,6 +13,7 @@ from memory.intelligence import evaluate_memory
 
 from core.identity import ATLAS_IDENTITY
 from core.router import classify_input
+from core.event_logger import log_event
 
 
 class Atlas:
@@ -140,4 +141,28 @@ User message:
 {user_input}
 """
 
-        return ask_gemini(prompt)
+        log_event("AI REQUEST STARTED")
+
+        try:
+            response = ask_gemini(prompt)
+        except Exception as error:
+            status_code = getattr(error, "status_code", None)
+            if not isinstance(status_code, int) or isinstance(status_code, bool):
+                status_code = getattr(error, "code", None)
+
+            if (
+                isinstance(status_code, int)
+                and not isinstance(status_code, bool)
+                and 100 <= status_code <= 599
+            ):
+                failure_message = f"AI REQUEST FAILED - {status_code}"
+            else:
+                failure_message = (
+                    f"AI REQUEST FAILED - {type(error).__name__}"
+                )
+
+            log_event(failure_message)
+            raise
+
+        log_event("AI RESPONSE RECEIVED")
+        return response

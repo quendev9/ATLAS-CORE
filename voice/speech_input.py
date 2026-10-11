@@ -36,8 +36,16 @@ def _get_model():
     return _model
 
 
-def listen_once(timeout=LISTEN_TIMEOUT):
-    """Listen through the default microphone and return recognized text."""
+def listen_once(
+    timeout=LISTEN_TIMEOUT,
+    stop_event=None,
+    interrupt_event=None,
+):
+    """Listen for speech, checking session events between audio queue waits.
+
+    Device startup and Vosk model loading are blocking operations; stop is
+    observed once capture is active, at most one queue wait later.
+    """
     audio_queue = queue.Queue()
     recognizer = KaldiRecognizer(_get_model(), SAMPLE_RATE)
 
@@ -51,6 +59,9 @@ def listen_once(timeout=LISTEN_TIMEOUT):
 
     deadline = time.monotonic() + timeout
 
+    if stop_event and stop_event.is_set():
+        return ""
+
     with sd.RawInputStream(
         samplerate=SAMPLE_RATE,
         blocksize=BLOCK_SIZE,
@@ -58,9 +69,14 @@ def listen_once(timeout=LISTEN_TIMEOUT):
         channels=1,
         callback=audio_callback,
     ):
-        while time.monotonic() < deadline:
+        while (
+            time.monotonic() < deadline
+            and not (stop_event and stop_event.is_set())
+            and not (interrupt_event and interrupt_event.is_set())
+        ):
             try:
-                audio_data = audio_queue.get(timeout=0.25)
+                remaining = max(0, deadline - time.monotonic())
+                audio_data = audio_queue.get(timeout=min(0.25, remaining))
             except queue.Empty:
                 continue
 

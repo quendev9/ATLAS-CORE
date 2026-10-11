@@ -63,7 +63,7 @@ def _prepare_speech(text):
     return text.strip()
 
 
-def _speak_fish(text):
+def _speak_fish(text, cancel_event=None):
     """Generate and play speech using Fish Audio."""
     client = _get_fish_client()
 
@@ -83,14 +83,18 @@ def _speak_fish(text):
     try:
         save(audio, str(audio_path))
 
-        if _stop_requested.is_set():
+        if _stop_requested.is_set() or (
+            cancel_event and cancel_event.is_set()
+        ):
             return
 
         # Plays through the system's default audio player.
         # Install playsound if this import is unavailable.
         from playsound import playsound
 
-        if not _stop_requested.is_set():
+        if not _stop_requested.is_set() and not (
+            cancel_event and cancel_event.is_set()
+        ):
             playsound(str(audio_path))
     finally:
         try:
@@ -106,29 +110,41 @@ def _speak_local(text):
     engine.runAndWait()
 
 
-def speak(text):
+def speak(text, cancel_event=None):
     """Speak with Fish Audio, falling back to the local voice on errors."""
     if not isinstance(text, str) or not text.strip():
-        return
+        return False
 
     clean_text = _prepare_speech(text)
     if not clean_text:
-        return
+        return False
 
     with _speech_lock:
+        if cancel_event and cancel_event.is_set():
+            return False
+
         _stop_requested.clear()
+        if cancel_event and cancel_event.is_set():
+            return False
 
         try:
-            _speak_fish(clean_text)
+            _speak_fish(clean_text, cancel_event)
         except Exception as error:
             print(f"[ATLAS voice] Fish Audio unavailable: {error}")
             print("[ATLAS voice] Using local fallback voice.")
 
             try:
-                if not _stop_requested.is_set():
+                if not _stop_requested.is_set() and not (
+                    cancel_event and cancel_event.is_set()
+                ):
                     _speak_local(clean_text)
             except Exception as fallback_error:
                 print(f"[ATLAS voice] Local speech failed: {fallback_error}")
+                return False
+
+        return not _stop_requested.is_set() and not (
+            cancel_event and cancel_event.is_set()
+        )
 
 
 def stop_speaking():

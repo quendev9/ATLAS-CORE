@@ -1,5 +1,8 @@
+
 import json
+import queue
 import sys
+import threading
 import time
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,33 +27,32 @@ sys.path.insert(0, str(PROJECT_DIR))
 
 from core.event_logger import get_events, log_event
 
-
 try:
     from core.atlas import Atlas
-
     ATLAS_AVAILABLE = True
-
 except Exception as error:
     ATLAS_AVAILABLE = False
-    print("ATLAS CORE IMPORT ERROR:", error)
-
+    print("ATLAS CORE IMPORT ERROR:", type(error).__name__)
 
 try:
     from memory.memory import get_all_memories
-
     MEMORY_AVAILABLE = True
-
 except Exception:
     MEMORY_AVAILABLE = False
 
-
 try:
     import ai.model
-
     AI_AVAILABLE = True
-
 except Exception:
     AI_AVAILABLE = False
+
+try:
+    from voice.speech_input import listen_once
+    from voice.speech_output import speak, stop_speaking
+    VOICE_AVAILABLE = True
+except Exception as error:
+    VOICE_AVAILABLE = False
+    print("ATLAS VOICE IMPORT ERROR:", type(error).__name__)
 
 
 # ---------------------------------------------------------
@@ -60,42 +62,86 @@ except Exception:
 atlas = None
 
 if ATLAS_AVAILABLE:
-
     try:
         atlas = Atlas()
-
     except Exception as error:
-        print("ATLAS INITIALIZATION ERROR:", error)
+        print("ATLAS INITIALIZATION ERROR:", type(error).__name__)
         atlas = None
         ATLAS_AVAILABLE = False
 
 
 # ---------------------------------------------------------
-# SERVER STATE
+# SERVER STATE AND LOCKS
 # ---------------------------------------------------------
 
 START_TIME = time.time()
+
+# Only one request may process a message through the shared
+# Atlas instance at a time.
+core_lock = threading.Lock()
+
+# Only one microphone session may run at a time.
+voice_lock = threading.Lock()
+
+# Protect shared status and voice-result values.
+state_lock = threading.Lock()
+
+voice_stop_event = threading.Event()
+voice_interrupt_event = threading.Event()
+pending_speech = queue.Queue(maxsize=20)
+
+server_state = {
+    "activity": "READY",
+    "voice_available": VOICE_AVAILABLE,
+    "voice_enabled": True,
+    "listening": False,
+    "speaking": False,
+    "processing": False,
+    "voice_session_active": False,
+    "voice_session_stopping": False,
+    "voice_event_id": 0,
+    "voice_response_id": 0,
+    "last_transcript": "",
+    "last_response": "",
+    "last_error": "",
+}
+
+
+def update_state(**changes):
+    with state_lock:
+        server_state.update(changes)
+        if server_state["voice_session_stopping"]:
+            server_state["activity"] = "STOPPING"
+        elif server_state["speaking"]:
+            server_state["activity"] = "SPEAKING"
+        elif server_state["processing"]:
+            server_state["activity"] = "PROCESSING"
+        elif server_state["listening"]:
+            server_state["activity"] = "LISTENING"
+        elif server_state["last_error"] and not server_state[
+            "voice_session_active"
+        ]:
+            server_state["activity"] = "ERROR"
+        else:
+            server_state["activity"] = "READY"
+
+
+def get_state_snapshot():
+    with state_lock:
+        return dict(server_state)
+
 
 # ---------------------------------------------------------
 # MEMORY
 # ---------------------------------------------------------
 
 def get_memory_count():
-
     if not MEMORY_AVAILABLE:
         return 0
 
     try:
-
-        memories = get_all_memories()
-
-        if not memories:
-            return 0
-
-        return len(memories)
-
+        return len(get_all_memories())
     except Exception:
-
         return 0
 
 
@@ -104,22 +150,14 @@ def get_memory_count():
 # ---------------------------------------------------------
 
 def get_system_data():
-
     cpu = psutil.cpu_percent(interval=None)
-
     memory = psutil.virtual_memory()
 
     return {
         "cpu": round(cpu, 1),
         "ram": round(memory.percent, 1),
-        "ram_used_gb": round(
-            memory.used / (1024 ** 3),
-            2
-        ),
-        "ram_total_gb": round(
-            memory.total / (1024 ** 3),
-            2
-        ),
+        "ram_used_gb": round(memory.used / (1024 ** 3), 2),
+        "ram_total_gb": round(memory.total / (1024 ** 3), 2),
     }
 
 
@@ -128,104 +166,269 @@ def get_system_data():
 # ---------------------------------------------------------
 
 def get_status():
-
-    uptime_seconds = int(
-        time.time() - START_TIME
-    )
+    state = get_state_snapshot()
 
     return {
-
         "core": (
-            "ONLINE"
-            if ATLAS_AVAILABLE and atlas
-            else "OFFLINE"
+            "ONLINE" if ATLAS_AVAILABLE and atlas else "OFFLINE"
         ),
-
-        "ai": (
-            "READY"
-            if AI_AVAILABLE
-            else "OFFLINE"
-        ),
-
-        "memory": (
-            "ACTIVE"
-            if MEMORY_AVAILABLE
-            else "OFFLINE"
-        ),
-
+        "ai": "READY" if AI_AVAILABLE else "OFFLINE",
+        "memory": "ACTIVE" if MEMORY_AVAILABLE else "OFFLINE",
         "tools": "NOT CONNECTED",
-
         "memory_count": get_memory_count(),
-
-        "uptime": uptime_seconds,
-
+        "uptime": int(time.time() - START_TIME),
         "system": get_system_data(),
-
+        "activity": state["activity"],
+        "voice_available": state["voice_available"],
+        "voice_enabled": state["voice_enabled"],
+        "listening": state["listening"],
+        "speaking": state["speaking"],
+        "voice_session_active": state["voice_session_active"],
+        "voice_session_stopping": state["voice_session_stopping"],
+        "voice_event_id": state["voice_event_id"],
+        "voice_response_id": state["voice_response_id"],
+        "last_transcript": state["last_transcript"],
+        "last_response": state["last_response"],
+        "last_error": state["last_error"],
     }
 
 
 # ---------------------------------------------------------
-# JSON RESPONSE
+# JSON HELPERS
 # ---------------------------------------------------------
 
 def send_json(handler, data, status=200):
-
-    payload = json.dumps(
-        data
-    ).encode("utf-8")
+    payload = json.dumps(data).encode("utf-8")
 
     handler.send_response(status)
-
     handler.send_header(
         "Content-Type",
         "application/json; charset=utf-8",
     )
-
-    handler.send_header(
-        "Content-Length",
-        str(len(payload)),
-    )
-
-    handler.send_header(
-        "Cache-Control",
-        "no-cache",
-    )
-
+    handler.send_header("Content-Length", str(len(payload)))
+    handler.send_header("Cache-Control", "no-cache")
+    handler.send_header("X-Content-Type-Options", "nosniff")
     handler.end_headers()
 
-    handler.wfile.write(payload)
+    try:
+        handler.wfile.write(payload)
+    except (BrokenPipeError, ConnectionResetError):
+        pass
 
-
-# ---------------------------------------------------------
-# READ REQUEST BODY
-# ---------------------------------------------------------
 
 def read_json_body(handler):
-
     try:
+        content_length = int(handler.headers.get("Content-Length", "0"))
 
-        content_length = int(
-            handler.headers.get(
-                "Content-Length",
-                0
-            )
-        )
+        if content_length <= 0 or content_length > 100_000:
+            return None
 
-        body = handler.rfile.read(
-            content_length
-        )
+        body = handler.rfile.read(content_length)
+        data = json.loads(body.decode("utf-8"))
 
-        return json.loads(
-            body.decode("utf-8")
-        )
+        return data if isinstance(data, dict) else None
 
-    except Exception:
-
+    except (ValueError, UnicodeError, json.JSONDecodeError):
         return None
 
 
 # ---------------------------------------------------------
-# REQUEST HANDLER
+# CORE PROCESSING
+# ---------------------------------------------------------
+
+def process_with_atlas(user_input):
+    if not ATLAS_AVAILABLE or atlas is None:
+        raise RuntimeError("ATLAS Core is unavailable.")
+
+    with core_lock:
+        update_state(processing=True)
+
+        try:
+            response = atlas.process(user_input)
+
+            if response is None:
+                response = "ATLAS Core returned no response."
+
+            return str(response)
+
+        finally:
+            update_state(processing=False)
+
+
+# ---------------------------------------------------------
+# VOICE WORKER
+# ---------------------------------------------------------
+
+def _speak_session_text(text, stop_event):
+    if stop_event.is_set():
+        return
+
+    update_state(speaking=True)
+    log_event("VOICE OUTPUT STARTED")
+
+    try:
+        speak(text, cancel_event=stop_event)
+    finally:
+        update_state(speaking=False)
+
+    log_event("VOICE OUTPUT FINISHED")
+
+
+def _speak_pending_text(stop_event):
+    try:
+        text = pending_speech.get_nowait()
+    except queue.Empty:
+        return False
+
+    try:
+        _speak_session_text(text, stop_event)
+    finally:
+        pending_speech.task_done()
+
+    return True
+
+
+def voice_worker(stop_event):
+    try:
+        log_event("VOICE LISTENING STARTED")
+
+        while not stop_event.is_set():
+            voice_interrupt_event.clear()
+
+            if _speak_pending_text(stop_event):
+                continue
+
+            if stop_event.is_set():
+                break
+
+            update_state(listening=True)
+            try:
+                transcript = listen_once(
+                    stop_event=stop_event,
+                    interrupt_event=voice_interrupt_event,
+                )
+            finally:
+                update_state(listening=False)
+
+            if stop_event.is_set():
+                break
+
+            if not transcript or not transcript.strip():
+                log_event("VOICE INPUT EMPTY OR TIMED OUT")
+                if not voice_interrupt_event.is_set():
+                    stop_event.wait(0.5)
+                continue
+
+            transcript = transcript.strip()
+            with state_lock:
+                server_state["voice_event_id"] += 1
+                event_id = server_state["voice_event_id"]
+            update_state(
+                last_transcript=transcript,
+                last_response="",
+                voice_response_id=0,
+            )
+            log_event("VOICE INPUT RECOGNIZED")
+
+            response = process_with_atlas(transcript)
+            update_state(
+                last_response=response,
+                voice_response_id=event_id,
+            )
+            log_event("VOICE RESPONSE GENERATED")
+
+            state = get_state_snapshot()
+            if state["voice_enabled"] and not stop_event.is_set():
+                _speak_session_text(response, stop_event)
+
+    except Exception as error:
+        print("ATLAS VOICE ERROR:", type(error).__name__)
+        log_event("VOICE OPERATION FAILED")
+
+        update_state(
+            listening=False,
+            speaking=False,
+            last_error=(
+                "Voice operation failed: "
+                f"{type(error).__name__}. Check the server terminal."
+            ),
+        )
+
+    finally:
+        update_state(
+            listening=False,
+            speaking=False,
+            voice_session_active=False,
+            voice_session_stopping=False,
+        )
+        voice_lock.release()
+
+
+def start_voice_listening():
+    if not VOICE_AVAILABLE:
+        return False, "Voice modules are unavailable."
+
+    if not ATLAS_AVAILABLE or atlas is None:
+        return False, "ATLAS Core is unavailable."
+
+    if not voice_lock.acquire(blocking=False):
+        return False, "A voice operation is already running."
+
+    try:
+        voice_stop_event.clear()
+        voice_interrupt_event.clear()
+        while True:
+            try:
+                pending_speech.get_nowait()
+                pending_speech.task_done()
+            except queue.Empty:
+                break
+        update_state(
+            voice_session_active=True,
+            voice_session_stopping=False,
+            listening=False,
+            speaking=False,
+            last_error="",
+            last_transcript="",
+            last_response="",
+        )
+        worker = threading.Thread(
+            target=voice_worker,
+            args=(voice_stop_event,),
+            name="ATLAS-Voice-Worker",
+            daemon=True,
+        )
+        worker.start()
+        return True, "Voice session started."
+
+    except Exception:
+        voice_lock.release()
+        update_state(
+            listening=False,
+            speaking=False,
+            voice_session_active=False,
+            voice_session_stopping=False,
+            last_error="Could not start the voice worker.",
+        )
+        return False, "Could not start the voice worker."
+
+
+def stop_voice_session():
+    with state_lock:
+        if not server_state["voice_session_active"]:
+            return False
+        voice_stop_event.set()
+        server_state["voice_session_stopping"] = True
+        server_state["activity"] = "STOPPING"
+
+    voice_interrupt_event.set()
+    stop_speaking()
+    log_event("VOICE SESSION STOP REQUESTED")
+    return True
+
+
+# ---------------------------------------------------------
+# HTTP REQUEST HANDLER
 # ---------------------------------------------------------
 
 class AtlasHandler(BaseHTTPRequestHandler):
@@ -233,248 +436,369 @@ class AtlasHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
-
     # -----------------------------------------------------
     # GET
     # -----------------------------------------------------
 
     def do_GET(self):
+        path = self.path.split("?", 1)[0]
 
-        if self.path == "/api/status":
-
-            send_json(
-                self,
-                get_status()
-            )
-
+        if path == "/api/status":
+            send_json(self, get_status())
             return
 
-
-        if self.path == "/api/logs":
-
-            send_json(
-                self,
-                {
-                    "logs": get_events()
-                }
-            )
-
+        if path == "/api/logs":
+            send_json(self, {"logs": get_events()})
             return
 
-
-        if self.path == "/" or self.path == "/index.html":
-
-            self.serve_file(
-                UI_DIR / "index.html",
-                "text/html"
-            )
-
+        if path in ("/", "/index.html"):
+            self.serve_file(UI_DIR / "index.html", "text/html")
             return
 
-
-        if self.path == "/style.css":
-
-            self.serve_file(
-                UI_DIR / "style.css",
-                "text/css"
-            )
-
+        if path == "/style.css":
+            self.serve_file(UI_DIR / "style.css", "text/css")
             return
 
-
-        if self.path == "/app.js":
-
+        if path == "/app.js":
             self.serve_file(
                 UI_DIR / "app.js",
-                "application/javascript"
+                "application/javascript",
             )
-
             return
 
-
-        send_json(
-            self,
-            {
-                "error": "Not found"
-            },
-            404
-        )
-
+        send_json(self, {"error": "Not found"}, 404)
 
     # -----------------------------------------------------
     # POST
     # -----------------------------------------------------
 
     def do_POST(self):
+        path = self.path.split("?", 1)[0]
 
-        if self.path == "/api/chat":
-
+        if path == "/api/chat":
             self.handle_chat()
-
             return
 
+        if path == "/api/voice/listen":
+            self.handle_voice_listen()
+            return
 
-        send_json(
-            self,
-            {
-                "error": "Not found"
-            },
-            404
-        )
+        if path == "/api/voice/session/start":
+            self.handle_voice_listen()
+            return
 
+        if path == "/api/voice/session/stop":
+            self.handle_voice_session_stop()
+            return
+
+        if path == "/api/voice/speak":
+            self.handle_voice_speak()
+            return
+
+        if path == "/api/voice/stop":
+            self.handle_voice_stop()
+            return
+
+        if path == "/api/voice/settings":
+            self.handle_voice_settings()
+            return
+
+        send_json(self, {"error": "Not found"}, 404)
 
     # -----------------------------------------------------
-    # CHAT
+    # TEXT CHAT
     # -----------------------------------------------------
 
     def handle_chat(self):
-
-        global atlas
-
         data = read_json_body(self)
 
-        if not data:
-
-            send_json(
-                self,
-                {
-                    "error": "Invalid JSON."
-                },
-                400
-            )
-
+        if data is None:
+            send_json(self, {"error": "Invalid JSON."}, 400)
             return
 
+        user_input = data.get("message", "")
 
-        user_input = data.get(
-            "message",
-            ""
-        ).strip()
+        if not isinstance(user_input, str):
+            send_json(self, {"error": "Message must be text."}, 400)
+            return
 
+        user_input = user_input.strip()
 
         if not user_input:
-
-            send_json(
-                self,
-                {
-                    "error": "Message cannot be empty."
-                },
-                400
-            )
-
+            send_json(self, {"error": "Message cannot be empty."}, 400)
             return
 
+        if len(user_input) > 10_000:
+            send_json(self, {"error": "Message is too long."}, 400)
+            return
+
+        if not ATLAS_AVAILABLE or atlas is None:
+            send_json(
+                self,
+                {"error": "ATLAS Core is unavailable."},
+                503,
+            )
+            return
 
         log_event("USER INPUT RECEIVED")
         log_event("REQUEST PROCESSING")
 
-
-        if not ATLAS_AVAILABLE or atlas is None:
-
-            log_event("ATLAS PROCESS FAILED")
-
-            send_json(
-                self,
-                {
-                    "error": "ATLAS Core is unavailable."
-                },
-                503
-            )
-
-            return
-
-
-        log_event("ATLAS PROCESS STARTED")
-
         try:
-
-            response = atlas.process(
-                user_input
-            )
-
-
-            if response is None:
-
-                response = (
-                    "ATLAS Core returned no response."
-                )
-
-
-            response = str(response)
+            response = process_with_atlas(user_input)
 
         except Exception as error:
-
-            print(
-                "ATLAS PROCESS ERROR:",
-                type(error).__name__
-            )
-
+            print("ATLAS PROCESS ERROR:", type(error).__name__)
             log_event("ATLAS PROCESS FAILED")
 
             send_json(
                 self,
-                {
-                    "error": (
-                        "ATLAS Core encountered "
-                        "an internal error."
-                    )
-                },
-                500
+                {"error": "ATLAS Core encountered an internal error."},
+                500,
             )
             return
 
         log_event("ATLAS PROCESS COMPLETED")
+        send_json(self, {"response": response})
+        log_event("RESPONSE DELIVERED")
+
+    # -----------------------------------------------------
+    # START VOICE LISTENING
+    # -----------------------------------------------------
+
+    def handle_voice_listen(self):
+        success, message = start_voice_listening()
+
+        if not success:
+            send_json(self, {"error": message}, 409)
+            return
 
         send_json(
             self,
             {
-                "response": response
-            }
+                "message": message,
+                "activity": get_state_snapshot()["activity"],
+                "voice_session_active": True,
+            },
+            202,
         )
 
-        log_event("RESPONSE DELIVERED")
+    def handle_voice_session_stop(self):
+        if not VOICE_AVAILABLE:
+            send_json(self, {"error": "Voice modules are unavailable."}, 503)
+            return
 
+        if not stop_voice_session():
+            send_json(
+                self,
+                {
+                    "message": "No voice session is running.",
+                    "activity": get_state_snapshot()["activity"],
+                    "voice_session_active": False,
+                },
+            )
+            return
+
+        send_json(
+            self,
+            {
+                "message": "Voice session stopping.",
+                "activity": "STOPPING",
+                "voice_session_active": True,
+            },
+            202,
+        )
+
+    # -----------------------------------------------------
+    # SPEAK TEXT THROUGH ATLAS VOICE
+    # -----------------------------------------------------
+
+    def handle_voice_speak(self):
+        data = read_json_body(self)
+
+        if data is None:
+            send_json(self, {"error": "Invalid JSON."}, 400)
+            return
+
+        text = data.get("text", "")
+
+        if not isinstance(text, str) or not text.strip():
+            send_json(self, {"error": "Text cannot be empty."}, 400)
+            return
+
+        text = text.strip()
+
+        if len(text) > 10_000:
+            send_json(self, {"error": "Text is too long."}, 400)
+            return
+
+        if not VOICE_AVAILABLE:
+            send_json(self, {"error": "Voice modules are unavailable."}, 503)
+            return
+
+        state = get_state_snapshot()
+
+        if not state["voice_enabled"]:
+            send_json(self, {"error": "Voice output is disabled."}, 409)
+            return
+
+        if state["voice_session_active"]:
+            if state["voice_session_stopping"]:
+                send_json(
+                    self,
+                    {"error": "The voice session is stopping."},
+                    409,
+                )
+                return
+
+            try:
+                pending_speech.put_nowait(text)
+            except queue.Full:
+                send_json(
+                    self,
+                    {"error": "The voice response queue is full."},
+                    429,
+                )
+                return
+
+            voice_interrupt_event.set()
+            send_json(
+                self,
+                {
+                    "message": "Speech response queued for the voice session.",
+                    "queued": True,
+                },
+                202,
+            )
+            return
+
+        # A live microphone or output operation owns the voice device.
+        if state["speaking"] or state["listening"]:
+            send_json(
+                self,
+                {"error": "A voice operation is already running."},
+                409,
+            )
+            return
+
+        def speech_worker():
+            try:
+                update_state(
+                    speaking=True,
+                    last_error="",
+                )
+                speak(text)
+
+            except Exception as error:
+                print("ATLAS SPEECH ERROR:", type(error).__name__)
+                update_state(
+                    last_error=(
+                        "Speech output failed: "
+                        f"{type(error).__name__}."
+                    ),
+                )
+
+            finally:
+                update_state(
+                    speaking=False,
+                )
+
+        # Reserve the voice lock so this cannot overlap microphone capture.
+        if not voice_lock.acquire(blocking=False):
+            send_json(
+                self,
+                {"error": "A voice operation is already running."},
+                409,
+            )
+            return
+
+        def reserved_speech_worker():
+            try:
+                speech_worker()
+            finally:
+                voice_lock.release()
+
+        try:
+            threading.Thread(
+                target=reserved_speech_worker,
+                name="ATLAS-Speech-Worker",
+                daemon=True,
+            ).start()
+        except Exception:
+            voice_lock.release()
+            send_json(
+                self,
+                {"error": "Could not start speech output."},
+                500,
+            )
+            return
+
+        send_json(self, {"message": "Speech output started."}, 202)
+
+    # -----------------------------------------------------
+    # STOP SPEECH OUTPUT
+    # -----------------------------------------------------
+
+    def handle_voice_stop(self):
+        if not VOICE_AVAILABLE:
+            send_json(self, {"error": "Voice modules are unavailable."}, 503)
+            return
+
+        try:
+            stop_speaking()
+            send_json(self, {"message": "Stop requested."})
+        except Exception as error:
+            print("ATLAS STOP SPEECH ERROR:", type(error).__name__)
+            send_json(self, {"error": "Could not stop speech output."}, 500)
+
+    # -----------------------------------------------------
+    # VOICE SETTINGS
+    # -----------------------------------------------------
+
+    def handle_voice_settings(self):
+        data = read_json_body(self)
+
+        if data is None or not isinstance(data.get("enabled"), bool):
+            send_json(
+                self,
+                {"error": "Provide an 'enabled' boolean."},
+                400,
+            )
+            return
+
+        update_state(voice_enabled=data["enabled"])
+
+        log_event(
+            "VOICE OUTPUT ENABLED"
+            if data["enabled"]
+            else "VOICE OUTPUT DISABLED"
+        )
+
+        send_json(
+            self,
+            {"voice_enabled": data["enabled"]},
+        )
 
     # -----------------------------------------------------
     # STATIC FILES
     # -----------------------------------------------------
 
-    def serve_file(
-        self,
-        path,
-        content_type
-    ):
-
+    def serve_file(self, path, content_type):
         if not path.exists():
-
-            send_json(
-                self,
-                {
-                    "error": "File not found"
-                },
-                404
-            )
-
+            send_json(self, {"error": "File not found."}, 404)
             return
-
 
         content = path.read_bytes()
 
         self.send_response(200)
-
-        self.send_header(
-            "Content-Type",
-            content_type
-        )
-
-        self.send_header(
-            "Content-Length",
-            str(len(content))
-        )
-
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
 
-        self.wfile.write(content)
+        try:
+            self.wfile.write(content)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
 
 # ---------------------------------------------------------
@@ -482,61 +806,37 @@ class AtlasHandler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------
 
 def main():
-
-    log_event(
-        "ATLAS HUD SERVER INITIALIZED"
-    )
-
+    log_event("ATLAS HUD SERVER INITIALIZED")
 
     if ATLAS_AVAILABLE and atlas:
-
-        log_event(
-            "ATLAS CORE CONNECTED"
-        )
-
+        log_event("ATLAS CORE CONNECTED")
     else:
-
-        log_event(
-            "ATLAS CORE UNAVAILABLE"
-        )
-
-
-    if MEMORY_AVAILABLE:
-
-        log_event(
-            "MEMORY MODULE CONNECTED"
-        )
-
-    else:
-
-        log_event(
-            "MEMORY MODULE UNAVAILABLE"
-        )
-
-
-    if AI_AVAILABLE:
-
-        log_event(
-            "AI MODULE DETECTED"
-        )
-
-    else:
-
-        log_event(
-            "AI MODULE UNAVAILABLE"
-        )
-
+        log_event("ATLAS CORE UNAVAILABLE")
 
     log_event(
-        "SYSTEM TELEMETRY ONLINE"
+        "MEMORY MODULE CONNECTED"
+        if MEMORY_AVAILABLE
+        else "MEMORY MODULE UNAVAILABLE"
     )
 
+    log_event(
+        "AI MODULE DETECTED"
+        if AI_AVAILABLE
+        else "AI MODULE UNAVAILABLE"
+    )
+
+    log_event(
+        "VOICE MODULE CONNECTED"
+        if VOICE_AVAILABLE
+        else "VOICE MODULE UNAVAILABLE"
+    )
+
+    log_event("SYSTEM TELEMETRY ONLINE")
 
     server = ThreadingHTTPServer(
         ("127.0.0.1", 8000),
-        AtlasHandler
+        AtlasHandler,
     )
-
 
     print()
     print("========================================")
@@ -544,28 +844,18 @@ def main():
     print("========================================")
     print()
     print("ATLAS HUD ONLINE")
-    print()
-    print("Open:")
-    print("http://127.0.0.1:8000")
-    print()
+    print("Open: http://127.0.0.1:8000")
     print("Press CTRL+C to shut down.")
     print()
 
-
     try:
-
         server.serve_forever()
-
     except KeyboardInterrupt:
-
         print()
         print("ATLAS HUD SERVER OFFLINE")
-
     finally:
-
         server.server_close()
 
 
 if __name__ == "__main__":
-
     main()

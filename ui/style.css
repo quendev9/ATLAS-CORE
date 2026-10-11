@@ -113,6 +113,8 @@ body {
 
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
 
     border-bottom: 1px solid var(--line);
 
@@ -178,6 +180,31 @@ body {
     letter-spacing: 2px;
 
     color: var(--green);
+}
+
+.panel-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.panel-controls button {
+    min-height: 26px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    background: rgba(0, 229, 255, 0.04);
+    color: var(--muted);
+    font: inherit;
+    font-size: 8px;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.panel-controls button:hover,
+.panel-controls button[aria-expanded="false"] {
+    border-color: var(--cyan);
+    color: var(--cyan);
 }
 
 
@@ -246,6 +273,38 @@ body {
     padding: 18px;
 
     position: relative;
+    min-width: 0;
+    overflow: auto;
+}
+
+.diagnostics > summary,
+.voice-tools > summary {
+    color: var(--cyan);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.diagnostics > summary::-webkit-details-marker,
+.voice-tools > summary::-webkit-details-marker {
+    display: none;
+}
+
+.diagnostics > summary::after,
+.voice-tools > summary::after {
+    content: "+";
+    float: right;
+    color: var(--muted);
+}
+
+.diagnostics[open] > summary::after,
+.voice-tools[open] > summary::after {
+    content: "−";
+}
+
+.diagnostics-content {
+    padding-top: 18px;
 }
 
 .left-panel::before,
@@ -642,6 +701,23 @@ body {
     letter-spacing: 1px;
 }
 
+.hud.left-panel-collapsed .left-panel,
+.hud.right-panel-collapsed .right-panel {
+    display: none;
+}
+
+.hud.left-panel-collapsed .workspace {
+    grid-template-columns: minmax(0, 1fr) 230px;
+}
+
+.hud.right-panel-collapsed .workspace {
+    grid-template-columns: 230px minmax(0, 1fr);
+}
+
+.hud.left-panel-collapsed.right-panel-collapsed .workspace {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 
 /* =========================
    CONVERSATION
@@ -867,14 +943,14 @@ body {
     min-height: 30px;
 
     display: flex;
-
-    align-items: center;
-
-    gap: 25px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
 
     border-top: 1px solid var(--line);
 
-    padding-top: 10px;
+    margin-top: 18px;
+    padding-top: 12px;
 
     font-size: 8px;
 
@@ -889,8 +965,6 @@ body {
 }
 
 .log-live {
-    margin-left: auto;
-
     color: var(--green);
 }
 
@@ -947,6 +1021,7 @@ body {
     }
 
     .hud {
+        width: 100%;
         height: auto;
 
         min-height: 100vh;
@@ -955,6 +1030,15 @@ body {
 
     .workspace {
         grid-template-columns: 1fr;
+    }
+
+    .panel-controls {
+        margin-left: 0;
+    }
+
+    .right-panel,
+    .left-panel {
+        max-height: none;
     }
 
     .core-area {
@@ -971,5 +1055,198 @@ body {
 
     .hud.chat-expanded .conversation {
         min-height: 500px;
+    }
+}
+
+
+/* ==================================================
+   ATLAS VOICE CONTROLS
+================================================== */
+
+.voice-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid rgba(0, 225, 255, 0.12);
+    background: rgba(0, 12, 20, 0.45);
+}
+
+.voice-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 14px;
+    border: 1px solid rgba(0, 225, 255, 0.45);
+    border-radius: 3px;
+    background: rgba(0, 225, 255, 0.07);
+    color: #8cf5ff;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition:
+        background 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.voice-button:hover:not(:disabled) {
+    background: rgba(0, 225, 255, 0.16);
+    border-color: #00e5ff;
+    box-shadow: 0 0 12px rgba(0, 225, 255, 0.12);
+}
+
+.voice-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.voice-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    color: #9acbd0;
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.voice-toggle-label input {
+    accent-color: #00e5ff;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+.stop-voice-button {
+    border-color: rgba(255, 105, 105, 0.45);
+    color: #ffaaaa;
+    background: rgba(255, 60, 60, 0.05);
+}
+
+.stop-voice-button:hover:not(:disabled) {
+    border-color: #ff7777;
+    background: rgba(255, 60, 60, 0.13);
+}
+
+.voice-error {
+    padding: 0 16px 8px;
+    color: #ff9999;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.voice-error:empty {
+    display: none;
+}
+
+.voice-tools {
+    flex: 0 0 auto;
+    border: 1px solid rgba(0, 229, 255, 0.12);
+    background: rgba(0, 12, 20, 0.24);
+}
+
+.voice-tools > summary {
+    padding: 10px 14px;
+    color: var(--muted);
+}
+
+.voice-tools[open] > summary {
+    border-bottom: 1px solid rgba(0, 229, 255, 0.12);
+}
+
+.voice-tools .voice-controls {
+    border-top: 0;
+    background: transparent;
+}
+
+.diagnostics .panel-label {
+    margin-bottom: 12px;
+}
+
+.diagnostics .system-log-entry {
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+}
+
+.conversation-state[data-state="listening"] {
+    color: #00e5ff;
+}
+
+.conversation-state[data-state="processing"] {
+    color: #ffd166;
+}
+
+.conversation-state[data-state="speaking"] {
+    color: #a6ffb5;
+}
+
+.conversation-state[data-state="offline"],
+.conversation-state[data-state="error"] {
+    color: #ff7777;
+}
+
+@media (max-width: 600px) {
+    .hud {
+        width: 100%;
+        padding: 14px;
+        gap: 10px;
+    }
+
+    .brand-subtitle {
+        max-width: 220px;
+        line-height: 1.4;
+    }
+
+    .panel-controls {
+        width: 100%;
+    }
+
+    .panel-controls button {
+        flex: 1;
+    }
+
+    .core-area {
+        min-height: 340px;
+    }
+
+    .ring-outer {
+        width: min(410px, 70vw);
+        height: min(410px, 70vw);
+    }
+
+    .ring-middle {
+        width: min(310px, 56vw);
+        height: min(310px, 56vw);
+    }
+
+    .ring-inner {
+        width: min(215px, 40vw);
+        height: min(215px, 40vw);
+    }
+
+    .voice-controls {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .voice-button {
+        padding: 8px 10px;
+        font-size: 10px;
+    }
+
+    .voice-toggle-label {
+        font-size: 10px;
+    }
+
+    .conversation-header {
+        padding: 8px 12px;
     }
 }

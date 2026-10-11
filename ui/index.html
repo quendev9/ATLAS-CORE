@@ -1,453 +1,191 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>ATLAS HUD</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
 
-
 <body>
-
-    <!-- =====================================================
-         BACKGROUND
-    ====================================================== -->
-
     <div class="grid"></div>
-
     <div class="ambient-glow"></div>
-
-
-    <!-- =====================================================
-         MAIN HUD
-    ====================================================== -->
 
     <main class="hud">
 
-
-        <!-- =================================================
-             TOP BAR
-        ================================================== -->
-
+        <!-- TOP BAR -->
         <header class="top-bar">
-
             <div class="brand">
-
-                <div class="brand-mark">
-                    A
-                </div>
-
-
+                <div class="brand-mark">A</div>
                 <div>
-
-                    <div class="brand-name">
-                        ATLAS
-                    </div>
-
+                    <div class="brand-name">ATLAS</div>
                     <div class="brand-subtitle">
                         ADAPTIVE TECHNOLOGY & LEARNING AUTONOMOUS SYSTEM
                     </div>
-
                 </div>
-
             </div>
-
 
             <div class="system-status">
-
                 <span class="status-dot"></span>
-
-                <span>
-                    CORE ONLINE
-                </span>
-
+                <span>CORE ONLINE</span>
             </div>
 
+            <nav class="panel-controls" aria-label="HUD panel controls">
+                <button id="toggleLeftPanel" type="button" aria-expanded="true">
+                    LEFT
+                </button>
+                <button id="toggleRightPanel" type="button" aria-expanded="true">
+                    RIGHT
+                </button>
+                <button
+                    id="toggleSidePanels"
+                    type="button"
+                    aria-expanded="true"
+                    title="Hide or restore both side panels"
+                >
+                    ALL PANELS
+                </button>
+            </nav>
         </header>
 
-
-
-        <!-- =================================================
-             MAIN WORKSPACE
-        ================================================== -->
-
+        <!-- MAIN WORKSPACE -->
         <section class="workspace">
 
-
-            <!-- =============================================
-                 LEFT PANEL
-            ============================================== -->
-
+            <!-- LEFT PANEL -->
             <aside class="left-panel">
-
-
-                <div class="panel-label">
-                    SYSTEM
-                </div>
-
+                <div class="panel-label">SYSTEM</div>
 
                 <div class="system-item">
-
-                    <span>
-                        CORE
-                    </span>
-
-                    <span
-                        id="coreStatus"
-                        class="online"
-                    >
-                        CONNECTING
-                    </span>
-
+                    <span>CORE</span>
+                    <span id="coreStatus" class="online">CONNECTING</span>
                 </div>
-
 
                 <div class="system-item">
-
-                    <span>
-                        AI
-                    </span>
-
-                    <span
-                        id="aiStatus"
-                        class="online"
-                    >
-                        CHECKING
-                    </span>
-
+                    <span>AI</span>
+                    <span id="aiStatus" class="online">CHECKING</span>
                 </div>
-
 
                 <div class="system-item">
-
-                    <span>
-                        MEMORY
-                    </span>
-
-                    <span
-                        id="memoryStatus"
-                        class="online"
-                    >
-                        CHECKING
-                    </span>
-
+                    <span>MEMORY</span>
+                    <span id="memoryStatus" class="online">CHECKING</span>
                 </div>
-
 
                 <div class="system-item">
-
-                    <span>
-                        TOOLS
-                    </span>
-
-                    <span
-                        id="toolsStatus"
-                        class="offline"
-                    >
-                        CHECKING
-                    </span>
-
+                    <span>TOOLS</span>
+                    <span id="toolsStatus" class="offline">CHECKING</span>
                 </div>
-
-
 
                 <div class="panel-divider"></div>
 
-
-
-                <div class="panel-label">
-                    CURRENT PROJECT
-                </div>
-
+                <div class="panel-label">CURRENT PROJECT</div>
 
                 <div class="project-card">
-
-                    <div class="project-name">
-                        PROJECT-ATLAS
-                    </div>
-
-
-                    <div class="project-status">
-                        CORE DEVELOPMENT
-                    </div>
-
-
+                    <div class="project-name">PROJECT-ATLAS</div>
+                    <div class="project-status">CORE DEVELOPMENT</div>
                     <div class="project-line"></div>
 
-
                     <div class="project-data">
-
-                        <span>
-                            STATUS
-                        </span>
-
-                        <span>
-                            ACTIVE
-                        </span>
-
+                        <span>STATUS</span>
+                        <span>ACTIVE</span>
                     </div>
 
-
                     <div class="project-data">
-
-                        <span>
-                            BUILD
-                        </span>
-
-                        <span>
-                            CORE
-                        </span>
-
+                        <span>BUILD</span>
+                        <span>CORE</span>
                     </div>
-
                 </div>
-
             </aside>
 
-
-
-            <!-- =============================================
-                 CENTRAL ATLAS CORE
-            ============================================== -->
-
+            <!-- CENTRAL ATLAS CORE -->
             <section class="core-area">
-
-
-                <div
-                    class="core-ring ring-outer"
-                ></div>
-
-
-                <div
-                    class="core-ring ring-middle"
-                ></div>
-
-
-                <div
-                    class="core-ring ring-inner"
-                ></div>
-
-
+                <div class="core-ring ring-outer"></div>
+                <div class="core-ring ring-middle"></div>
+                <div class="core-ring ring-inner"></div>
 
                 <div class="core-center">
-
-                    <div class="core-symbol">
-                        A
-                    </div>
-
-
-                    <div class="core-name">
-                        ATLAS
-                    </div>
-
-
-                    <div class="core-state">
+                    <div class="core-symbol">A</div>
+                    <div class="core-name">ATLAS</div>
+                    <div id="conversationStatus" class="core-state">
                         SYSTEM READY
                     </div>
-
                 </div>
 
-
-
-                <div class="core-data data-top">
-                    CORE
-                </div>
-
-
-                <div class="core-data data-left">
-                    AI
-                </div>
-
-
-                <div class="core-data data-right">
-                    MEMORY
-                </div>
-
-
-                <div class="core-data data-bottom">
-                    TOOLS
-                </div>
-
+                <div class="core-data data-top">CORE</div>
+                <div class="core-data data-left">AI</div>
+                <div class="core-data data-right">MEMORY</div>
+                <div class="core-data data-bottom">TOOLS</div>
             </section>
 
-
-
-            <!-- =============================================
-                 RIGHT PANEL
-            ============================================== -->
-
+            <!-- RIGHT PANEL -->
             <aside class="right-panel">
-
-
-                <div class="panel-label">
-                    SYSTEM TELEMETRY
-                </div>
-
+                <details class="diagnostics" open>
+                    <summary>DIAGNOSTICS</summary>
+                    <div class="diagnostics-content">
+                <div class="panel-label">SYSTEM TELEMETRY</div>
 
                 <div class="telemetry">
-
-
                     <div class="telemetry-row">
-
-                        <span>
-                            CPU
-                        </span>
-
-
+                        <span>CPU</span>
                         <div class="meter">
-
-                            <div
-                                id="cpuMeter"
-                                class="meter-fill"
-                                style="width: 0%;"
-                            ></div>
-
+                            <div id="cpuMeter" class="meter-fill" style="width: 0%;"></div>
                         </div>
-
-
-                        <span id="cpuValue">
-                            --
-                        </span>
-
+                        <span id="cpuValue">--</span>
                     </div>
 
-
-
                     <div class="telemetry-row">
-
-                        <span>
-                            RAM
-                        </span>
-
-
+                        <span>RAM</span>
                         <div class="meter">
-
-                            <div
-                                id="ramMeter"
-                                class="meter-fill"
-                                style="width: 0%;"
-                            ></div>
-
+                            <div id="ramMeter" class="meter-fill" style="width: 0%;"></div>
                         </div>
-
-
-                        <span id="ramValue">
-                            --
-                        </span>
-
+                        <span id="ramValue">--</span>
                     </div>
 
-
-
                     <div class="telemetry-row">
-
-                        <span>
-                            CORE
-                        </span>
-
-
+                        <span>CORE</span>
                         <div class="meter">
-
-                            <div
-                                id="coreMeter"
-                                class="meter-fill"
-                                style="width: 0%;"
-                            ></div>
-
+                            <div id="coreMeter" class="meter-fill" style="width: 0%;"></div>
                         </div>
-
-
-                        <span id="coreValue">
-                            --
-                        </span>
-
+                        <span id="coreValue">--</span>
                     </div>
-
                 </div>
-
-
 
                 <div class="panel-divider"></div>
 
-
-
-                <div class="panel-label">
-                    MEMORY
-                </div>
-
+                <div class="panel-label">MEMORY</div>
 
                 <div class="memory-status">
-
-                    <div
-                        id="memoryCount"
-                        class="memory-number"
-                    >
-                        --
-                    </div>
-
-
-                    <div class="memory-text">
-                        STORED MEMORIES
-                    </div>
-
+                    <div id="memoryCount" class="memory-number">--</div>
+                    <div class="memory-text">STORED MEMORIES</div>
                 </div>
-
-
 
                 <div class="panel-divider"></div>
 
-
-
-                <div class="panel-label">
-                    CONNECTION
-                </div>
-
+                <div class="panel-label">CONNECTION</div>
 
                 <div class="connection">
-
                     <span class="status-dot"></span>
-
-                    <span>
-                        LOCAL CORE
-                    </span>
-
+                    <span>LOCAL CORE</span>
                 </div>
 
+                <!-- SYSTEM LOG -->
+                <footer class="system-log"></footer>
+                    </div>
+                </details>
             </aside>
-
         </section>
 
-
-
-        <!-- =================================================
-             CONVERSATION
-        ================================================== -->
-
-        <section
-            id="conversation"
-            class="conversation"
-        >
-
-
-            <!-- HEADER -->
+        <!-- CONVERSATION -->
+        <section id="conversation" class="conversation">
 
             <div class="conversation-header">
-
-                <span>
-                    ATLAS INTERFACE
-                </span>
-
+                <span>ATLAS INTERFACE</span>
 
                 <div class="conversation-controls">
-
-                    <span class="conversation-state">
-                        LISTENING
+                    <span class="conversation-state" aria-live="polite">
+                        READY
                     </span>
-
 
                     <button
                         id="expandChatButton"
@@ -456,120 +194,89 @@
                     >
                         EXPAND
                     </button>
-
                 </div>
-
             </div>
 
-
-
-            <!-- MESSAGES -->
-
-            <div
-                id="messages"
-                class="messages"
-            >
-
+            <div id="messages" class="messages" aria-live="polite">
                 <div class="message atlas-message">
-
-                    <div class="message-label">
-                        ATLAS
-                    </div>
-
-
+                    <div class="message-label">ATLAS</div>
                     <div class="message-text">
                         ATLAS Core initialized. Awaiting input.
                     </div>
-
                 </div>
-
             </div>
 
-
-
-            <!-- COMMAND INPUT -->
-
+            <!-- TEXT INPUT -->
             <div class="input-area">
-
-                <div class="input-prefix">
-                    >
-                </div>
-
+                <div class="input-prefix">&gt;</div>
 
                 <input
                     id="commandInput"
                     type="text"
-                    placeholder="Speak to ATLAS..."
+                    placeholder="Send a command to ATLAS..."
                     autocomplete="off"
+                    aria-label="Message ATLAS"
                 >
 
+                <button id="sendButton" type="button">SEND</button>
+            </div>
 
-                <button id="sendButton">
-                    SEND
+            <details class="voice-tools">
+                <summary>VOICE CONTROLS</summary>
+                <div class="voice-controls">
+
+                <button
+                    id="voiceSessionStart"
+                    class="voice-button"
+                    type="button"
+                    title="Start a continuous voice session"
+                >
+                    <span aria-hidden="true">▶</span>
+                    START VOICE SESSION
+                </button>
+
+                <button
+                    id="voiceSessionStop"
+                    class="voice-button stop-voice-button"
+                    type="button"
+                    title="Stop listening and end the voice session"
+                    disabled
+                >
+                    STOP VOICE SESSION
+                </button>
+
+                <label class="voice-toggle-label" for="voiceToggle">
+                    <input
+                        id="voiceToggle"
+                        type="checkbox"
+                        checked
+                    >
+                    <span>VOICE OUTPUT</span>
+                </label>
+
+                <button
+                    id="stopSpeakingButton"
+                    class="voice-button stop-voice-button"
+                    type="button"
+                >
+                    STOP SPEECH
                 </button>
 
             </div>
+            </details>
+
+            <div
+                id="voiceError"
+                class="voice-error"
+                role="status"
+                aria-live="polite"
+            ></div>
 
         </section>
 
-
-
-        <!-- =================================================
-             SYSTEM LOG
-        ================================================== -->
-
-        <footer class="system-log">
-
-            <div>
-
-                <span class="log-time">
-                    SYSTEM
-                </span>
-
-                CORE INITIALIZED
-
-            </div>
-
-
-            <div>
-
-                <span class="log-time">
-                    SYSTEM
-                </span>
-
-                AI MODULE READY
-
-            </div>
-
-
-            <div>
-
-                <span class="log-time">
-                    SYSTEM
-                </span>
-
-                MEMORY MODULE ACTIVE
-
-            </div>
-
-
-            <div class="log-live">
-                LIVE
-            </div>
-
-        </footer>
-
-
     </main>
 
-
-
-    <!-- =====================================================
-         JAVASCRIPT
-    ====================================================== -->
-
     <script src="app.js"></script>
-
 </body>
 
 </html>

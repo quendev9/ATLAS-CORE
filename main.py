@@ -1,24 +1,63 @@
+
 from ai.model import close_gemini
 from core.atlas import Atlas
+from voice.speech_input import listen_once
+from voice.speech_output import speak
 
 
 def main():
     atlas = Atlas()
 
     print("ATLAS CORE ONLINE")
+    print("Choose input mode:")
+    print("[1] Text")
+    print("[2] Voice (push-to-talk)")
+
+    mode = input("MODE: ").strip()
+
+    if mode not in {"1", "2"}:
+        print("Invalid mode. Starting text mode.")
+        mode = "1"
 
     try:
         while True:
+            try:
+                if mode == "2":
+                    input("\nPress Enter to talk, or type 'exit' to quit: ")
 
-            user_input = input("YOU: ")
+                    # Check for exit before opening the microphone.
+                    # The prompt accepts Enter or text; typing exit quits.
+                    # (See the note below for the improved prompt.)
+                    user_input = listen_once()
+                else:
+                    user_input = input("\nYOU: ")
 
-            if user_input.lower() == "exit":
-                print("ATLAS CORE OFFLINE")
+                user_input = user_input.strip()
+
+                if not user_input:
+                    print("No input received. Try again.")
+                    continue
+
+                if user_input.casefold() == "exit":
+                    print("ATLAS CORE OFFLINE")
+                    break
+
+                print(f"YOU: {user_input}")
+
+                response = atlas.process(user_input)
+                print(f"ATLAS: {response}")
+
+                if mode == "2":
+                    speak(response)
+
+            except KeyboardInterrupt:
+                print("\nATLAS CORE OFFLINE")
                 break
+            except Exception as error:
+                print(f"Input error: {error}")
+                if mode == "2":
+                    print("Voice mode is still active. You can try again.")
 
-            response = atlas.process(user_input)
-
-            print(f"ATLAS: {response}")
     finally:
         close_gemini()
 

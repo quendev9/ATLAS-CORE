@@ -6,3 +6,6 @@ memory/memory.json
 memory/project_memory.json
 memory/conversations.json
 memory/*.bak
+models/
+test_fish_voice.py
+atlas_fish_voice_test.mp3

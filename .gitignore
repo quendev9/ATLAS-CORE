@@ -1,4 +1,8 @@
 .env
 .venv/
 __pycache__/
+*.py[cod]
 memory/memory.json
+memory/project_memory.json
+memory/conversations.json
+memory/*.bak

@@ -1,18 +1,27 @@
+from ai.model import close_gemini
 from core.atlas import Atlas
 
 
-atlas = Atlas()
+def main():
+    atlas = Atlas()
 
-print("ATLAS CORE ONLINE")
+    print("ATLAS CORE ONLINE")
 
-while True:
+    try:
+        while True:
 
-    user_input = input("YOU: ")
+            user_input = input("YOU: ")
 
-    if user_input.lower() == "exit":
-        print("ATLAS CORE OFFLINE")
-        break
+            if user_input.lower() == "exit":
+                print("ATLAS CORE OFFLINE")
+                break
 
-    response = atlas.process(user_input)
+            response = atlas.process(user_input)
 
-    print(f"ATLAS: {response}")
+            print(f"ATLAS: {response}")
+    finally:
+        close_gemini()
+
+
+if __name__ == "__main__":
+    main()

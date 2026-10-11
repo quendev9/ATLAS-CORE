@@ -5,6 +5,8 @@ Evaluates user messages and extracts potentially useful
 long-term information.
 """
 
+from memory.manager import extract_facts
+
 
 TEMPORARY_SIGNALS = (
     "today",
@@ -66,142 +68,15 @@ def extract_memory(user_input):
         dict containing category, key, and value.
         None if nothing useful can be extracted.
     """
-
-    text = user_input.strip()
-    lowered = text.lower()
-
-    # Learning / studying
-    learning_prefixes = (
-        "i'm learning ",
-        "im learning ",
-        "i am learning ",
-        "i've been learning ",
-        "i have been learning ",
-        "i'm studying ",
-        "im studying ",
-        "i am studying ",
-    )
-
-    for prefix in learning_prefixes:
-        if lowered.startswith(prefix):
-            value = clean_value(text[len(prefix):])
-
-            if value:
-                return {
-                    "category": "interest",
-                    "key": "interests",
-                    "value": value,
-                }
-
-    # Building / working on projects
-    project_prefixes = (
-        "i'm building ",
-        "im building ",
-        "i am building ",
-        "i'm working on ",
-        "im working on ",
-        "i am working on ",
-    )
-
-    for prefix in project_prefixes:
-        if lowered.startswith(prefix):
-            value = clean_value(text[len(prefix):])
-
-            if value:
-                return {
-                    "category": "project",
-                    "key": "projects",
-                    "value": value,
-                }
-
-    # Interests
-    interest_prefixes = (
-        "i'm interested in ",
-        "im interested in ",
-        "i am interested in ",
-        "i'm really into ",
-        "im really into ",
-        "i am really into ",
-        "i'm into ",
-        "im into ",
-        "i am into ",
-    )
-
-    for prefix in interest_prefixes:
-        if lowered.startswith(prefix):
-            value = clean_value(text[len(prefix):])
-
-            if value:
-                return {
-                    "category": "interest",
-                    "key": "interests",
-                    "value": value,
-                }
-
-    # Likes
-    like_prefixes = (
-        "i like ",
-        "i really like ",
-    )
-
-    for prefix in like_prefixes:
-        if lowered.startswith(prefix):
-            value = clean_value(text[len(prefix):])
-
-            if value:
-                return {
-                    "category": "likes",
-                    "key": "likes",
-                    "value": value,
-                }
-
-    # Loves
-    love_prefixes = (
-        "i love ",
-        "i really love ",
-    )
-
-    for prefix in love_prefixes:
-        if lowered.startswith(prefix):
-            value = clean_value(text[len(prefix):])
-
-            if value:
-                return {
-                    "category": "loves",
-                    "key": "loves",
-                    "value": value,
-                }
-
-    # Preferences
-    if lowered.startswith("i prefer "):
-        value = clean_value(text[len("i prefer "):])
-
-        if value:
-            return {
-                "category": "preference",
-                "key": "preferences",
-                "value": value,
-            }
-
-    # Goals
-    goal_prefixes = (
-        "i want to ",
-        "i hope to ",
-        "i plan to ",
-    )
-
-    for prefix in goal_prefixes:
-        if lowered.startswith(prefix):
-            value = clean_value(text[len(prefix):])
-
-            if value:
-                return {
-                    "category": "goal",
-                    "key": "goals",
-                    "value": value,
-                }
-
-    return None
+    facts = extract_facts(user_input)
+    if not facts:
+        return None
+    fact = facts[0]
+    return {
+        "category": fact.get("category", "other"),
+        "key": fact.get("key", ""),
+        "value": fact.get("value", ""),
+    }
 
 
 def evaluate_memory(user_input):

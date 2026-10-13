@@ -49,11 +49,17 @@ except Exception:
 
 try:
     from voice.speech_input import listen_once
-    from voice.speech_output import speak, stop_speaking
-    VOICE_AVAILABLE = True
+    VOICE_INPUT_AVAILABLE = True
 except Exception as error:
-    VOICE_AVAILABLE = False
-    print("ATLAS VOICE IMPORT ERROR:", type(error).__name__)
+    VOICE_INPUT_AVAILABLE = False
+    print("ATLAS VOICE INPUT IMPORT ERROR:", type(error).__name__, str(error))
+
+try:
+    from voice.speech_output import speak, stop_speaking
+    VOICE_OUTPUT_AVAILABLE = True
+except Exception as error:
+    VOICE_OUTPUT_AVAILABLE = False
+    print("ATLAS VOICE OUTPUT IMPORT ERROR:", type(error).__name__, str(error))
 
 
 # ---------------------------------------------------------
@@ -93,7 +99,7 @@ pending_speech = queue.Queue(maxsize=20)
 
 server_state = {
     "activity": "READY",
-    "voice_available": VOICE_AVAILABLE,
+    "voice_available": VOICE_INPUT_AVAILABLE,
     "voice_enabled": True,
     "listening": False,
     "speaking": False,
@@ -192,6 +198,7 @@ def get_status():
         "system": get_system_data(),
         "activity": state["activity"],
         "voice_available": state["voice_available"],
+        "voice_output_available": VOICE_OUTPUT_AVAILABLE,
         "voice_enabled": state["voice_enabled"],
         "listening": state["listening"],
         "speaking": state["speaking"],
@@ -350,7 +357,11 @@ def voice_worker(stop_event):
             log_event("VOICE RESPONSE GENERATED")
 
             state = get_state_snapshot()
-            if state["voice_enabled"] and not stop_event.is_set():
+            if (
+                state["voice_enabled"]
+                and VOICE_OUTPUT_AVAILABLE
+                and not stop_event.is_set()
+            ):
                 _speak_session_text(response, stop_event)
 
     except Exception as error:
@@ -377,8 +388,8 @@ def voice_worker(stop_event):
 
 
 def start_voice_listening():
-    if not VOICE_AVAILABLE:
-        return False, "Voice modules are unavailable."
+    if not VOICE_INPUT_AVAILABLE:
+        return False, "Voice input modules are unavailable."
 
     if not ATLAS_AVAILABLE or atlas is None:
         return False, "ATLAS Core is unavailable."
@@ -434,7 +445,8 @@ def stop_voice_session():
         server_state["activity"] = "STOPPING"
 
     voice_interrupt_event.set()
-    stop_speaking()
+    if VOICE_OUTPUT_AVAILABLE:
+        stop_speaking()
     log_event("VOICE SESSION STOP REQUESTED")
     return True
 
@@ -595,8 +607,12 @@ class AtlasHandler(BaseHTTPRequestHandler):
         )
 
     def handle_voice_session_stop(self):
-        if not VOICE_AVAILABLE:
-            send_json(self, {"error": "Voice modules are unavailable."}, 503)
+        if not VOICE_INPUT_AVAILABLE:
+            send_json(
+                self,
+                {"error": "Voice input modules are unavailable."},
+                503,
+            )
             return
 
         if not stop_voice_session():
@@ -643,8 +659,12 @@ class AtlasHandler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Text is too long."}, 400)
             return
 
-        if not VOICE_AVAILABLE:
-            send_json(self, {"error": "Voice modules are unavailable."}, 503)
+        if not VOICE_OUTPUT_AVAILABLE:
+            send_json(
+                self,
+                {"error": "Voice output modules are unavailable."},
+                503,
+            )
             return
 
         state = get_state_snapshot()
@@ -751,8 +771,12 @@ class AtlasHandler(BaseHTTPRequestHandler):
     # -----------------------------------------------------
 
     def handle_voice_stop(self):
-        if not VOICE_AVAILABLE:
-            send_json(self, {"error": "Voice modules are unavailable."}, 503)
+        if not VOICE_OUTPUT_AVAILABLE:
+            send_json(
+                self,
+                {"error": "Voice output modules are unavailable."},
+                503,
+            )
             return
 
         try:
@@ -838,9 +862,14 @@ def main():
     )
 
     log_event(
-        "VOICE MODULE CONNECTED"
-        if VOICE_AVAILABLE
-        else "VOICE MODULE UNAVAILABLE"
+        "VOICE INPUT CONNECTED"
+        if VOICE_INPUT_AVAILABLE
+        else "VOICE INPUT UNAVAILABLE"
+    )
+    log_event(
+        "VOICE OUTPUT CONNECTED"
+        if VOICE_OUTPUT_AVAILABLE
+        else "VOICE OUTPUT UNAVAILABLE"
     )
 
     log_event("SYSTEM TELEMETRY ONLINE")

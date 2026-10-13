@@ -1,5 +1,6 @@
 
 import json
+import os
 import queue
 import sys
 import threading
@@ -137,12 +138,13 @@ def get_state_snapshot():
 
 def get_memory_count():
     if not MEMORY_AVAILABLE:
-        return 0
+        return None
 
     try:
         return len(get_all_memories())
-    except Exception:
-        return 0
+    except Exception as error:
+        print("ATLAS MEMORY STATUS ERROR:", type(error).__name__)
+        return None
 
 
 # ---------------------------------------------------------
@@ -167,15 +169,25 @@ def get_system_data():
 
 def get_status():
     state = get_state_snapshot()
+    memory_count = get_memory_count()
 
     return {
         "core": (
             "ONLINE" if ATLAS_AVAILABLE and atlas else "OFFLINE"
         ),
-        "ai": "READY" if AI_AVAILABLE else "OFFLINE",
-        "memory": "ACTIVE" if MEMORY_AVAILABLE else "OFFLINE",
+        "ai": (
+            "CONFIGURED"
+            if AI_AVAILABLE and os.getenv("GEMINI_API_KEY")
+            else "NOT CONFIGURED" if AI_AVAILABLE else "OFFLINE"
+        ),
+        "ai_provider": "Gemini" if AI_AVAILABLE else "Unavailable",
+        "ai_model": "gemini-3.6-flash" if AI_AVAILABLE else None,
+        "memory": (
+            "ACTIVE" if memory_count is not None
+            else "ERROR" if MEMORY_AVAILABLE else "OFFLINE"
+        ),
         "tools": "NOT CONNECTED",
-        "memory_count": get_memory_count(),
+        "memory_count": memory_count,
         "uptime": int(time.time() - START_TIME),
         "system": get_system_data(),
         "activity": state["activity"],

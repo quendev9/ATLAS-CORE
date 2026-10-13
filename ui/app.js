@@ -4,6 +4,8 @@ const sendButton = document.getElementById("sendButton");
 const messages = document.getElementById("messages");
 const hud = document.querySelector(".hud");
 const expandChatButton = document.getElementById("expandChatButton");
+const coreOrb = document.getElementById("coreOrb");
+const voiceCard = document.querySelector(".voice-card");
 
 const voiceSessionStartButton = document.getElementById("voiceSessionStart");
 const voiceSessionStopButton = document.getElementById("voiceSessionStop");
@@ -24,6 +26,7 @@ let voiceAvailable = false;
 let voiceControlRequestInProgress = false;
 let lastVoiceEventId = 0;
 let lastVoiceResponseId = 0;
+let taskStartedAt = null;
 
 // ==================================================
 // MESSAGE SYSTEM
@@ -57,6 +60,42 @@ function setConversationState(state) {
     }
 
     setText("conversationStatus", String(state).toUpperCase());
+}
+
+function updateClock() {
+    const clock = document.getElementById("systemClock");
+    if (!clock) return;
+
+    const now = new Date();
+    clock.replaceChildren(
+        document.createTextNode(now.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+        }))
+    );
+    const date = document.createElement("small");
+    date.textContent = now.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+    });
+    clock.appendChild(date);
+}
+
+function setOrbState(state) {
+    if (!coreOrb) return;
+
+    coreOrb.dataset.state = state;
+    const label = document.getElementById("orbStatusLabel");
+    const labels = {
+        idle: "STANDBY",
+        listening: "LISTENING",
+        thinking: "PROCESSING",
+        speaking: "SPEAKING",
+        "tool-execution": "TOOL EXECUTION"
+    };
+    coreOrb.setAttribute("aria-label", `ATLAS assistant ${labels[state] || labels.idle.toLowerCase()}`);
+    if (label) label.textContent = labels[state] || labels.idle;
 }
 
 function setButtonBusy(button, busy, busyText, normalText) {
@@ -107,6 +146,7 @@ async function apiRequest(url, options = {}) {
 
 async function sendCommand(command) {
     requestInProgress = true;
+    taskStartedAt = Date.now();
     setConversationState("PROCESSING");
 
     try {
@@ -137,6 +177,7 @@ async function sendCommand(command) {
         return null;
     } finally {
         requestInProgress = false;
+        taskStartedAt = null;
         updateHUDStatus();
     }
 }
@@ -178,12 +219,45 @@ if (input) {
 if (expandChatButton && hud) {
     expandChatButton.addEventListener("click", () => {
         const expanded = hud.classList.toggle("chat-expanded");
-
         expandChatButton.textContent = expanded ? "COLLAPSE" : "EXPAND";
+        expandChatButton.setAttribute("aria-expanded", String(expanded));
 
         if (input) input.focus();
     });
 }
+
+document.querySelectorAll(".action-card[data-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+        if (!input) return;
+        input.value = button.dataset.prompt || "";
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+    });
+});
+
+document.querySelectorAll(".action-card[data-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+        document.getElementById(button.dataset.target)?.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest"
+        });
+    });
+});
+
+document.querySelectorAll(".nav-item").forEach((link) => {
+    link.addEventListener("click", () => {
+        const activeLink = document.querySelector(".nav-item.active");
+        if (activeLink) activeLink.removeAttribute("aria-current");
+        document.querySelector(".nav-item.active")?.classList.remove("active");
+        link.classList.add("active");
+        link.setAttribute("aria-current", "page");
+
+        if (link.getAttribute("href") === "#voiceSettings") {
+            const voiceSettings = document.getElementById("voiceSettings");
+            if (voiceSettings) voiceSettings.open = true;
+        }
+    });
+});
 
 // ==================================================
 // CONTINUOUS VOICE SESSION
@@ -371,7 +445,7 @@ function setMeter(id, percentage) {
     if (!Number.isFinite(numericPercentage)) return;
 
     const safePercentage = Math.max(0, Math.min(100, numericPercentage));
-    element.style.width = `${safePercentage}%`;
+    element.style.height = `${safePercentage}%`;
 }
 
 // ==================================================
@@ -381,22 +455,40 @@ function setMeter(id, percentage) {
 async function updateHUDStatus() {
     try {
         const data = await apiRequest("/api/status");
+        const coreOnline = String(data.core || "").toUpperCase() === "ONLINE";
 
         // CORE
-        setText("coreStatus", data.core || "UNKNOWN");
+        const systemStatusItem = document.getElementById("systemStatusItem");
+        if (systemStatusItem) {
+            systemStatusItem.dataset.status = coreOnline ? "online" : "offline";
+            const statusText = systemStatusItem.querySelector("strong");
+            if (statusText) statusText.textContent = data.core || "UNKNOWN";
+        }
 
         // AI
         setText("aiStatus", data.ai || "UNKNOWN");
+        setText("aiProviderName", data.ai_provider || "Unavailable");
+        setText("providerCardName", data.ai_provider || "Unavailable");
+        setText("providerCardModel", data.ai_model || "Model not reported");
+        setText("providerCardStatus", data.ai || "UNKNOWN");
 
         // MEMORY
         setText("memoryStatus", data.memory || "UNKNOWN");
-
+        const memoryStatus = String(data.memory || "UNKNOWN").toUpperCase();
+        setText(
+            "memoryActivityStatus",
+            memoryStatus === "ACTIVE" ? "Memory available" :
+                memoryStatus === "ERROR" ? "Memory status error" :
+                    "Memory unavailable"
+        );
         // TOOLS
         setText("toolsStatus", data.tools || "UNKNOWN");
 
         // MEMORY COUNT
         if (typeof data.memory_count === "number") {
             setText("memoryCount", data.memory_count);
+        } else {
+            setText("memoryCount", "Unavailable");
         }
 
         // CPU
@@ -422,10 +514,59 @@ async function updateHUDStatus() {
 
         // VOICE STATUS
         const activity = String(data.activity || "READY").toUpperCase();
-        setConversationState(activity);
+        const listening = Boolean(data.listening);
+        const speaking = Boolean(data.speaking);
+        const processing = requestInProgress || Boolean(data.processing) ||
+            activity === "PROCESSING";
+        let orbState = "idle";
+
+        if (speaking) {
+            orbState = "speaking";
+        } else if (listening) {
+            orbState = "listening";
+        } else if (processing) {
+            orbState = "thinking";
+        } else if (activity === "TOOL EXECUTION") {
+            orbState = "tool-execution";
+        }
+        setOrbState(orbState);
+        setConversationState(processing ? "PROCESSING" : activity);
+        setText("taskTitle", processing ? "Processing conversation" : "No active tasks");
+        setText("taskDescription", processing ? "Waiting for ATLAS response" : "Waiting for a request");
+        setText("taskDuration", taskStartedAt
+            ? `${Math.max(0, Math.floor((Date.now() - taskStartedAt) / 1000))}s`
+            : "—");
+        setText("taskCount", processing ? "1 running" : "0 running");
+        setText("footerTaskStatus", processing ? "Processing conversation..." : "No active task");
+        setText("footerTaskPercent", processing ? "In progress" : "—");
+        const taskIndicator = document.getElementById("taskIndicator");
+        if (taskIndicator) taskIndicator.dataset.active = String(processing);
+        const taskProgressBar = document.getElementById("taskProgressBar");
+        const progressTrack = document.querySelector(".progress-track");
+        if (progressTrack) progressTrack.dataset.active = String(processing);
+        if (taskProgressBar) taskProgressBar.style.width = processing ? "" : "0%";
 
         voiceAvailable = Boolean(data.voice_available);
         const voiceSessionActive = Boolean(data.voice_session_active);
+        setText(
+            "voiceStatus",
+            !voiceAvailable ? "UNAVAILABLE" : speaking ? "SPEAKING" :
+                listening || voiceSessionActive ? "LISTENING" : "INACTIVE"
+        );
+        setText(
+            "voiceCardStatus",
+            !voiceAvailable ? "UNAVAILABLE" : speaking ? "SPEAKING" :
+                listening || voiceSessionActive ? "ACTIVE" : "INACTIVE"
+        );
+        setText("voiceInputState", !voiceAvailable ? "Unavailable" :
+            listening || voiceSessionActive ? "Active" : "Inactive");
+        setText(
+            "voiceOutputStatus",
+            data.voice_enabled ? (speaking ? "Speaking" : "On") : "Off"
+        );
+        if (voiceCard) {
+            voiceCard.dataset.active = String(voiceAvailable && (speaking || listening || voiceSessionActive));
+        }
 
         if (voiceSessionStartButton) {
             voiceSessionStartButton.disabled = !voiceAvailable ||
@@ -470,15 +611,47 @@ async function updateHUDStatus() {
             setText("voiceError", "");
         }
 
-        document.body.classList.remove("atlas-offline");
+        document.body.classList.toggle("atlas-offline", !coreOnline);
     } catch (error) {
         console.error("ATLAS STATUS ERROR:", error);
 
         setText("coreStatus", "OFFLINE");
         setText("aiStatus", "OFFLINE");
+        setText("aiProviderName", "Unavailable");
+        setText("providerCardName", "Unavailable");
+        setText("providerCardStatus", "OFFLINE");
         setText("memoryStatus", "OFFLINE");
+        setText("memoryCount", "Unavailable");
         setText("toolsStatus", "OFFLINE");
         setText("coreValue", "OFFLINE");
+        setText("voiceStatus", "UNAVAILABLE");
+        setText("voiceCardStatus", "UNAVAILABLE");
+        setText("voiceInputState", "Unavailable");
+        setText("memoryActivityStatus", "Status unavailable");
+        setText("cpuValue", "Unavailable");
+        setText("ramValue", "Unavailable");
+        setMeter("cpuMeter", 0);
+        setMeter("ramMeter", 0);
+        setText("taskTitle", "Status unavailable");
+        setText("taskDescription", "Cannot verify active tasks");
+        setText("taskDuration", "—");
+        setText("taskCount", "Unavailable");
+        setText("footerTaskStatus", "Status unavailable");
+        setText("footerTaskPercent", "—");
+        const taskIndicator = document.getElementById("taskIndicator");
+        if (taskIndicator) taskIndicator.dataset.active = "false";
+        const progressTrack = document.querySelector(".progress-track");
+        if (progressTrack) progressTrack.dataset.active = "false";
+        const taskProgressBar = document.getElementById("taskProgressBar");
+        if (taskProgressBar) taskProgressBar.style.width = "0%";
+        if (voiceCard) voiceCard.dataset.active = "false";
+        setOrbState("idle");
+        const systemStatusItem = document.getElementById("systemStatusItem");
+        if (systemStatusItem) {
+            systemStatusItem.dataset.status = "offline";
+            const statusText = systemStatusItem.querySelector("strong");
+            if (statusText) statusText.textContent = "OFFLINE";
+        }
         setConversationState("OFFLINE");
 
         document.body.classList.add("atlas-offline");
@@ -553,10 +726,24 @@ async function updateSystemLog() {
 
         logContainer.replaceChildren();
 
-        data.logs.slice(-6).forEach((entry) => {
+        const recentLogs = data.logs.slice(-4);
+        setText("notificationCount", recentLogs.length);
+        if (!recentLogs.length) {
+            const empty = document.createElement("span");
+            empty.className = "empty-log";
+            empty.textContent = "No recent system events";
+            logContainer.appendChild(empty);
+            return;
+        }
+
+        recentLogs.forEach((entry) => {
             const line = document.createElement("div");
             line.className = "system-log-entry";
-            line.textContent = `${entry.time}  ${entry.message}`;
+            const message = document.createElement("span");
+            message.textContent = String(entry.message || "System event");
+            const time = document.createElement("time");
+            time.textContent = String(entry.time || "");
+            line.append(message, time);
             logContainer.appendChild(line);
         });
     } catch (error) {
@@ -570,9 +757,11 @@ async function updateSystemLog() {
 
 updateHUDStatus();
 updateSystemLog();
+updateClock();
 
 setInterval(updateHUDStatus, 1000);
 setInterval(updateSystemLog, 1000);
+setInterval(updateClock, 30_000);
 
 // ==================================================
 // INITIAL MESSAGE

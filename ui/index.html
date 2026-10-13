@@ -58,12 +58,6 @@
                     <a class="nav-item" href="#memory-activity">
                         <span class="nav-icon" aria-hidden="true">▤</span><span><strong>Memory</strong><small>Facts, projects &amp; knowledge</small></span>
                     </a>
-                    <a class="nav-item" href="#tools-panel">
-                        <span class="nav-icon" aria-hidden="true">◇</span><span><strong>Tools</strong><small>Apps &amp; integrations</small></span>
-                    </a>
-                    <a class="nav-item" href="#hardware-panel">
-                        <span class="nav-icon" aria-hidden="true">▢</span><span><strong>Systems</strong><small>Hardware &amp; capabilities</small></span>
-                    </a>
                     <a class="nav-item" href="#voiceSettings">
                         <span class="nav-icon" aria-hidden="true">⚙</span><span><strong>Settings</strong><small>Preferences &amp; configuration</small></span>
                     </a>
@@ -79,7 +73,7 @@
                 <div class="hero">
                     <div class="greeting">
                         <span class="eyebrow">YOUR ASSISTANT</span>
-                        <h1>Good morning,<br><span>Quen.</span></h1>
+                        <h1>Good day,<br><span>Quen.</span></h1>
                         <p>I'm ATLAS. What would you like<br class="desktop-break"> to work on today?</p>
                     </div>
 
@@ -136,14 +130,8 @@
                         <button class="action-card" type="button" data-prompt="What do you remember about me?">
                             <span class="action-icon" aria-hidden="true">▤</span><span><strong>Search Memory</strong><small>Find past information</small></span>
                         </button>
-                        <button class="action-card" type="button" data-prompt="Start a new conversation">
-                            <span class="action-icon" aria-hidden="true">◌</span><span><strong>Start a Conversation</strong><small>Create or switch chat</small></span>
-                        </button>
-                        <button class="action-card unavailable" type="button" disabled title="No tools are connected">
-                            <span class="action-icon" aria-hidden="true">⌁</span><span><strong>Use a Tool</strong><small>No tools connected</small></span>
-                        </button>
-                        <button class="action-card" type="button" data-target="telemetry">
-                            <span class="action-icon" aria-hidden="true">⚙</span><span><strong>Check Systems</strong><small>View available telemetry</small></span>
+                        <button class="action-card" type="button" data-voice-toggle="true" aria-pressed="false" disabled>
+                            <span class="action-icon" aria-hidden="true">◉</span><span><strong>START VOICE SESSION</strong><small>Enable live microphone input</small></span>
                         </button>
                     </div>
                 </section>
@@ -168,8 +156,8 @@
                         <details class="voice-tools" id="voiceSettings">
                             <summary>VOICE SETTINGS</summary>
                             <div class="voice-controls">
-                                <button id="voiceSessionStart" class="voice-button" type="button" title="Start a continuous voice session">START LISTENING</button>
-                                <button id="voiceSessionStop" class="voice-button" type="button" title="Stop the voice session" disabled>STOP LISTENING</button>
+                                <button id="voiceSessionStart" class="voice-button" type="button" title="Start a continuous voice session" disabled>START VOICE SESSION</button>
+                                <button id="voiceSessionStop" class="voice-button" type="button" title="Stop the voice session" disabled>STOP VOICE SESSION</button>
                                 <label class="voice-toggle-label" for="voiceToggle">
                                     <input id="voiceToggle" type="checkbox" checked><span>VOICE OUTPUT</span>
                                 </label>
@@ -220,15 +208,6 @@
                     <div class="voice-directions"><span>Input <b id="voiceInputState">Inactive</b></span><span>Output <b id="voiceOutputStatus">On</b></span></div>
                 </section>
 
-                <section class="diagnostic-card tools-card" id="tools-panel">
-                    <div class="card-heading"><h2>TOOLS</h2><span id="toolsStatus">NOT CONNECTED</span></div>
-                    <div class="unavailable-detail"><span class="detail-icon" aria-hidden="true">◇</span><span><strong>No tools connected</strong><small>Tool integrations are unavailable</small></span></div>
-                </section>
-
-                <section class="diagnostic-card hardware-card" id="hardware-panel">
-                    <div class="card-heading"><h2>HARDWARE</h2><span>NOT REPORTED</span></div>
-                    <div class="unavailable-detail"><span class="detail-icon" aria-hidden="true">▢</span><span><strong>Hardware telemetry unavailable</strong><small>No device connections reported by the core</small></span></div>
-                </section>
             </aside>
         </section>
 

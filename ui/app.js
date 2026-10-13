@@ -9,6 +9,7 @@ const voiceCard = document.querySelector(".voice-card");
 
 const voiceSessionStartButton = document.getElementById("voiceSessionStart");
 const voiceSessionStopButton = document.getElementById("voiceSessionStop");
+const quickVoiceSessionButton = document.querySelector("[data-voice-toggle]");
 const voiceToggle = document.getElementById("voiceToggle");
 const stopSpeakingButton = document.getElementById("stopSpeakingButton");
 const conversationState = document.querySelector(".conversation-state");
@@ -23,7 +24,13 @@ const toggleSidePanelsButton = document.getElementById("toggleSidePanels");
 let requestInProgress = false;
 let voiceEnabled = true;
 let voiceAvailable = false;
+let voiceOutputAvailable = false;
 let voiceControlRequestInProgress = false;
+let voiceSessionOperation = null;
+let voiceSessionActive = false;
+let voiceSessionStopping = false;
+let voiceSpeaking = false;
+let statusRequestId = 0;
 let lastVoiceEventId = 0;
 let lastVoiceResponseId = 0;
 let taskStartedAt = null;
@@ -96,17 +103,6 @@ function setOrbState(state) {
     };
     coreOrb.setAttribute("aria-label", `ATLAS assistant ${labels[state] || labels.idle.toLowerCase()}`);
     if (label) label.textContent = labels[state] || labels.idle;
-}
-
-function setButtonBusy(button, busy, busyText, normalText) {
-    if (!button) return;
-
-    button.disabled = busy;
-    button.setAttribute("aria-busy", String(busy));
-
-    if (busyText && normalText) {
-        button.textContent = busy ? busyText : normalText;
-    }
 }
 
 // ==================================================
@@ -235,14 +231,15 @@ document.querySelectorAll(".action-card[data-prompt]").forEach((button) => {
     });
 });
 
-document.querySelectorAll(".action-card[data-target]").forEach((button) => {
-    button.addEventListener("click", () => {
-        document.getElementById(button.dataset.target)?.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest"
-        });
+if (quickVoiceSessionButton) {
+    quickVoiceSessionButton.addEventListener("click", () => {
+        if (voiceSessionActive) {
+            stopVoiceSession();
+        } else {
+            startVoiceSession();
+        }
     });
-});
+}
 
 document.querySelectorAll(".nav-item").forEach((link) => {
     link.addEventListener("click", () => {
@@ -263,16 +260,64 @@ document.querySelectorAll(".nav-item").forEach((link) => {
 // CONTINUOUS VOICE SESSION
 // ==================================================
 
+function syncVoiceSessionControls() {
+    const busy = voiceControlRequestInProgress;
+    const quickLabel = voiceSessionOperation === "starting" ? "STARTING..." :
+        voiceSessionOperation === "stopping" ||
+            (voiceSessionActive && voiceSessionStopping) ? "STOPPING..." :
+            voiceSessionActive ? "STOP VOICE SESSION" : "START VOICE SESSION";
+
+    if (quickVoiceSessionButton) {
+        const label = quickVoiceSessionButton.querySelector("strong");
+        const description = quickVoiceSessionButton.querySelector("small");
+        if (label) label.textContent = quickLabel;
+        if (description) {
+            description.textContent = voiceSessionOperation === "starting"
+                ? "Requesting microphone access..."
+                : voiceSessionOperation === "stopping" || voiceSessionStopping
+                    ? "Waiting for the voice session to stop"
+                    : voiceSessionActive
+                        ? "End live microphone input"
+                        : "Enable live microphone input";
+        }
+        quickVoiceSessionButton.disabled = busy ||
+            (voiceSessionActive && voiceSessionStopping) ||
+            (!voiceSessionActive && (!voiceAvailable || voiceSpeaking));
+        quickVoiceSessionButton.setAttribute("aria-busy", String(busy));
+        quickVoiceSessionButton.setAttribute("aria-pressed", String(voiceSessionActive));
+        quickVoiceSessionButton.title = voiceSessionActive
+            ? "Stop the continuous voice session"
+            : voiceAvailable
+                ? "Start a continuous voice session"
+                : "Voice dependencies are unavailable. Check the server terminal.";
+    }
+
+    if (voiceSessionStartButton) {
+        voiceSessionStartButton.disabled = busy || voiceSessionActive ||
+            !voiceAvailable || voiceSpeaking;
+        voiceSessionStartButton.textContent =
+            voiceSessionOperation === "starting" ? "STARTING..." : "START VOICE SESSION";
+        voiceSessionStartButton.setAttribute("aria-busy", String(busy));
+    }
+
+    if (voiceSessionStopButton) {
+        voiceSessionStopButton.disabled = busy || !voiceSessionActive ||
+            voiceSessionStopping;
+        voiceSessionStopButton.textContent =
+            voiceSessionOperation === "stopping" ||
+                (voiceSessionActive && voiceSessionStopping)
+                ? "STOPPING..." : "STOP VOICE SESSION";
+        voiceSessionStopButton.setAttribute("aria-busy", String(busy));
+    }
+}
+
 async function startVoiceSession() {
-    if (!voiceSessionStartButton || voiceControlRequestInProgress) return;
+    if (voiceControlRequestInProgress || voiceSessionActive ||
+        !voiceAvailable || voiceSpeaking) return;
 
     voiceControlRequestInProgress = true;
-    setButtonBusy(
-        voiceSessionStartButton,
-        true,
-        "STARTING...",
-        "START VOICE SESSION"
-    );
+    voiceSessionOperation = "starting";
+    syncVoiceSessionControls();
     setConversationState("STARTING");
 
     try {
@@ -281,6 +326,12 @@ async function startVoiceSession() {
             body: JSON.stringify({})
         });
 
+        if (data.voice_session_active !== true) {
+            throw new Error(data.message || "The server did not confirm that the voice session started.");
+        }
+
+        voiceSessionActive = true;
+        voiceSessionStopping = false;
         addMessage("SYSTEM", data.message || "Voice session started.");
     } catch (error) {
         console.error("ATLAS VOICE SESSION ERROR:", error);
@@ -288,13 +339,9 @@ async function startVoiceSession() {
         setConversationState("ERROR");
     } finally {
         voiceControlRequestInProgress = false;
-        setButtonBusy(
-            voiceSessionStartButton,
-            false,
-            "STARTING...",
-            "START VOICE SESSION"
-        );
-        updateHUDStatus();
+        voiceSessionOperation = null;
+        syncVoiceSessionControls();
+        await updateHUDStatus();
     }
 }
 
@@ -303,15 +350,12 @@ if (voiceSessionStartButton) {
 }
 
 async function stopVoiceSession() {
-    if (!voiceSessionStopButton || voiceControlRequestInProgress) return;
+    if (voiceControlRequestInProgress || !voiceSessionActive ||
+        voiceSessionStopping) return;
 
     voiceControlRequestInProgress = true;
-    setButtonBusy(
-        voiceSessionStopButton,
-        true,
-        "STOPPING...",
-        "STOP VOICE SESSION"
-    );
+    voiceSessionOperation = "stopping";
+    syncVoiceSessionControls();
     setConversationState("STOPPING");
 
     try {
@@ -319,6 +363,11 @@ async function stopVoiceSession() {
             method: "POST",
             body: JSON.stringify({})
         });
+        if (typeof data.voice_session_active === "boolean") {
+            voiceSessionActive = data.voice_session_active;
+        }
+        voiceSessionStopping = data.voice_session_stopping === true ||
+            data.activity === "STOPPING";
         addMessage("SYSTEM", data.message || "Voice session stopping.");
     } catch (error) {
         console.error("ATLAS VOICE SESSION STOP ERROR:", error);
@@ -326,13 +375,9 @@ async function stopVoiceSession() {
         setConversationState("ERROR");
     } finally {
         voiceControlRequestInProgress = false;
-        setButtonBusy(
-            voiceSessionStopButton,
-            false,
-            "STOPPING...",
-            "STOP VOICE SESSION"
-        );
-        updateHUDStatus();
+        voiceSessionOperation = null;
+        syncVoiceSessionControls();
+        await updateHUDStatus();
     }
 }
 
@@ -345,7 +390,7 @@ if (voiceSessionStopButton) {
 // ==================================================
 
 async function speakResponse(text) {
-    if (!voiceEnabled || !voiceAvailable || !text || !text.trim()) return;
+    if (!voiceEnabled || !voiceOutputAvailable || !text || !text.trim()) return;
 
     try {
         await apiRequest("/api/voice/speak", {
@@ -453,8 +498,12 @@ function setMeter(id, percentage) {
 // ==================================================
 
 async function updateHUDStatus() {
+    const requestId = ++statusRequestId;
+
     try {
         const data = await apiRequest("/api/status");
+        if (requestId !== statusRequestId) return;
+
         const coreOnline = String(data.core || "").toUpperCase() === "ONLINE";
 
         // CORE
@@ -481,9 +530,6 @@ async function updateHUDStatus() {
                 memoryStatus === "ERROR" ? "Memory status error" :
                     "Memory unavailable"
         );
-        // TOOLS
-        setText("toolsStatus", data.tools || "UNKNOWN");
-
         // MEMORY COUNT
         if (typeof data.memory_count === "number") {
             setText("memoryCount", data.memory_count);
@@ -547,7 +593,10 @@ async function updateHUDStatus() {
         if (taskProgressBar) taskProgressBar.style.width = processing ? "" : "0%";
 
         voiceAvailable = Boolean(data.voice_available);
-        const voiceSessionActive = Boolean(data.voice_session_active);
+        voiceOutputAvailable = Boolean(data.voice_output_available);
+        voiceSessionActive = Boolean(data.voice_session_active);
+        voiceSessionStopping = Boolean(data.voice_session_stopping);
+        voiceSpeaking = speaking;
         setText(
             "voiceStatus",
             !voiceAvailable ? "UNAVAILABLE" : speaking ? "SPEAKING" :
@@ -562,27 +611,14 @@ async function updateHUDStatus() {
             listening || voiceSessionActive ? "Active" : "Inactive");
         setText(
             "voiceOutputStatus",
-            data.voice_enabled ? (speaking ? "Speaking" : "On") : "Off"
+            !voiceOutputAvailable ? "Unavailable" :
+                data.voice_enabled ? (speaking ? "Speaking" : "On") : "Off"
         );
         if (voiceCard) {
             voiceCard.dataset.active = String(voiceAvailable && (speaking || listening || voiceSessionActive));
         }
 
-        if (voiceSessionStartButton) {
-            voiceSessionStartButton.disabled = !voiceAvailable ||
-                voiceSessionActive ||
-                Boolean(data.speaking) ||
-                voiceControlRequestInProgress;
-            voiceSessionStartButton.title = voiceAvailable
-                ? "Start a continuous voice session"
-                : "Voice dependencies are unavailable. Check the server terminal.";
-        }
-
-        if (voiceSessionStopButton) {
-            voiceSessionStopButton.disabled = !voiceSessionActive ||
-                Boolean(data.voice_session_stopping) ||
-                voiceControlRequestInProgress;
-        }
+        syncVoiceSessionControls();
 
         if (stopSpeakingButton) {
             stopSpeakingButton.disabled = !Boolean(data.speaking);
@@ -613,6 +649,8 @@ async function updateHUDStatus() {
 
         document.body.classList.toggle("atlas-offline", !coreOnline);
     } catch (error) {
+        if (requestId !== statusRequestId) return;
+
         console.error("ATLAS STATUS ERROR:", error);
 
         setText("coreStatus", "OFFLINE");
@@ -622,11 +660,14 @@ async function updateHUDStatus() {
         setText("providerCardStatus", "OFFLINE");
         setText("memoryStatus", "OFFLINE");
         setText("memoryCount", "Unavailable");
-        setText("toolsStatus", "OFFLINE");
         setText("coreValue", "OFFLINE");
         setText("voiceStatus", "UNAVAILABLE");
         setText("voiceCardStatus", "UNAVAILABLE");
         setText("voiceInputState", "Unavailable");
+        voiceAvailable = false;
+        voiceOutputAvailable = false;
+        voiceSpeaking = false;
+        syncVoiceSessionControls();
         setText("memoryActivityStatus", "Status unavailable");
         setText("cpuValue", "Unavailable");
         setText("ramValue", "Unavailable");
@@ -698,10 +739,15 @@ if (hud && toggleRightPanelButton) {
 
 if (hud && toggleSidePanelsButton) {
     toggleSidePanelsButton.addEventListener("click", () => {
-        const panelsVisible = !hud.classList.contains("left-panel-collapsed") ||
-            !hud.classList.contains("right-panel-collapsed");
-        hud.classList.toggle("left-panel-collapsed", panelsVisible);
-        hud.classList.toggle("right-panel-collapsed", panelsVisible);
+        const bothHidden = hud.classList.contains("left-panel-collapsed") &&
+            hud.classList.contains("right-panel-collapsed");
+
+        if (bothHidden) {
+            hud.classList.remove("left-panel-collapsed", "right-panel-collapsed");
+        } else {
+            hud.classList.add("left-panel-collapsed", "right-panel-collapsed");
+        }
+
         syncPanelButtons();
     });
 }
@@ -755,6 +801,7 @@ async function updateSystemLog() {
 // START LIVE SYSTEMS
 // ==================================================
 
+syncVoiceSessionControls();
 updateHUDStatus();
 updateSystemLog();
 updateClock();

@@ -61,14 +61,18 @@ summary:focus-visible {
 }
 
 .hud {
+    --left-panel-track: minmax(160px, 16.1%);
+    --right-panel-track: minmax(235px, 20.8%);
+    --panel-transition: .24s cubic-bezier(.2, .7, .2, 1);
     width: 100%;
     height: 100vh;
     height: 100dvh;
     min-height: 540px;
     display: grid;
-    grid-template-columns: minmax(160px, 16.1%) minmax(0, 1fr) minmax(235px, 20.8%);
+    grid-template-columns: var(--left-panel-track) minmax(0, 1fr) var(--right-panel-track);
     grid-template-rows: 58px minmax(0, 1fr) 88px;
     overflow: hidden;
+    transition: grid-template-columns var(--panel-transition);
 }
 
 .top-bar {
@@ -153,7 +157,7 @@ summary:focus-visible {
 
 .top-status-item strong {
     color: #dce0e2;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 500;
     letter-spacing: .5px;
     white-space: nowrap;
@@ -162,7 +166,7 @@ summary:focus-visible {
 .top-status-item small {
     margin-top: 2px;
     color: var(--muted);
-    font-size: 8px;
+    font-size: 9px;
     white-space: nowrap;
 }
 
@@ -200,7 +204,7 @@ summary:focus-visible {
     min-width: 76px;
     padding-left: 18px;
     color: #dfe2e3;
-    font-size: 9px;
+    font-size: 10px;
     text-align: center;
     white-space: nowrap;
 }
@@ -208,7 +212,7 @@ summary:focus-visible {
 .clock small {
     margin-top: 3px;
     color: var(--muted);
-    font-size: 8px;
+    font-size: 9px;
 }
 
 .panel-controls {
@@ -222,7 +226,7 @@ summary:focus-visible {
     border: 1px solid transparent;
     background: transparent;
     color: var(--dim);
-    font-size: 7px;
+    font-size: 8px;
     letter-spacing: .5px;
 }
 
@@ -237,7 +241,25 @@ summary:focus-visible {
     grid-row: 2;
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(160px, 16.1%) minmax(0, 1fr) minmax(235px, 20.8%);
+    grid-template-columns: var(--left-panel-track) minmax(0, 1fr) var(--right-panel-track);
+    grid-template-rows: minmax(0, 1fr);
+    min-width: 0;
+    transition: grid-template-columns var(--panel-transition);
+}
+
+.left-panel {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.core-area {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.right-panel {
+    grid-column: 3;
+    grid-row: 1;
 }
 
 .left-panel,
@@ -256,6 +278,19 @@ summary:focus-visible {
     padding: 19px 12px 14px;
     border-right: 1px solid var(--line);
     background: rgba(8, 10, 12, .5);
+}
+
+.hud.left-panel-collapsed {
+    --left-panel-track: minmax(0px, 0%);
+}
+
+.hud.right-panel-collapsed {
+    --right-panel-track: minmax(0px, 0%);
+}
+
+.hud.left-panel-collapsed .left-panel,
+.hud.right-panel-collapsed .right-panel {
+    display: none;
 }
 
 .main-nav {
@@ -298,14 +333,15 @@ summary:focus-visible {
 }
 
 .nav-item strong {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
+    overflow-wrap: anywhere;
 }
 
 .nav-item small {
     margin-top: 3px;
     color: var(--muted);
-    font-size: 8px;
+    font-size: 9px;
 }
 
 .sidebar-build {
@@ -361,31 +397,35 @@ summary:focus-visible {
 
 .hero {
     position: relative;
+    min-width: 0;
     min-height: 240px;
     display: grid;
-    grid-template-columns: minmax(145px, .8fr) minmax(230px, 1.2fr) minmax(135px, .75fr);
+    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr) minmax(0, .75fr);
+    column-gap: clamp(8px, 1.4vw, 20px);
     align-items: center;
 }
 
 .greeting {
     position: relative;
     z-index: 1;
+    min-width: 0;
     padding: 4px 12px 5px 17px;
     border-left: 2px solid #c8cdd0;
+    overflow-wrap: anywhere;
 }
 
 .eyebrow {
     display: block;
     margin-bottom: 10px;
     color: var(--muted);
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: 1.4px;
 }
 
 .greeting h1 {
     margin: 0;
     color: #e8ebec;
-    font-size: clamp(18px, 1.65vw, 25px);
+    font-size: clamp(22px, 2vw, 30px);
     font-weight: 400;
     line-height: 1.28;
 }
@@ -398,7 +438,7 @@ summary:focus-visible {
 .hero-aside p {
     margin: 12px 0 0;
     color: #b0b9bd;
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.6;
 }
 
@@ -631,7 +671,7 @@ summary:focus-visible {
     padding-bottom: 9px;
     border-bottom: 1px solid var(--line);
     color: #b9c0c4;
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 600;
     letter-spacing: 1px;
 }
@@ -644,7 +684,7 @@ summary:focus-visible {
 
 .action-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     padding-top: 10px;
 }
@@ -689,21 +729,25 @@ summary:focus-visible {
 .action-card strong,
 .action-card small {
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+}
+
+.action-card > span:last-child {
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .action-card strong {
     color: #d3d9dc;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 500;
 }
 
 .action-card small {
     margin-top: 4px;
     color: var(--muted);
-    font-size: 8px;
+    font-size: 9px;
 }
 
 .conversation {
@@ -765,24 +809,26 @@ summary:focus-visible {
 }
 
 .message {
+    min-width: 0;
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     gap: 9px;
-    padding: 3px 0;
+    padding: 8px 0;
 }
 
 .message-label {
     flex: 0 0 auto;
     color: #c2c9cc;
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: .4px;
 }
 
 .message-text {
     min-width: 0;
     color: #aeb8bc;
-    font-size: 9px;
-    line-height: 1.45;
+    font-size: 10px;
+    line-height: 1.6;
+    white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 
@@ -810,7 +856,7 @@ summary:focus-visible {
     outline: 0;
     background: transparent;
     color: #e2e7e9;
-    font-size: 10px;
+    font-size: 11px;
 }
 
 #commandInput::placeholder {
@@ -894,7 +940,7 @@ summary:focus-visible {
     border-radius: 5px;
     background: #171d20;
     color: #c9d0d3;
-    font-size: 7px;
+    font-size: 8px;
     letter-spacing: .4px;
 }
 
@@ -922,11 +968,103 @@ summary:focus-visible {
 }
 
 .hud.chat-expanded .core-area {
-    grid-template-rows: minmax(130px, .65fr) auto minmax(190px, 1.15fr);
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 32%);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "conversation hero"
+        "conversation quick-actions";
+    gap: clamp(10px, 1.4vw, 20px);
+    overflow: hidden;
+}
+
+.hud.chat-expanded .hero {
+    grid-area: hero;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+    gap: 8px;
+}
+
+.hud.chat-expanded .greeting {
+    padding: 4px 8px;
+}
+
+.hud.chat-expanded .greeting h1 {
+    font-size: clamp(18px, 1.7vw, 24px);
+}
+
+.hud.chat-expanded .greeting p {
+    margin-top: 6px;
+    font-size: 10px;
+}
+
+.hud.chat-expanded .desktop-break,
+.hud.chat-expanded .hero-aside {
+    display: none;
+}
+
+.hud.chat-expanded .orb {
+    width: min(100%, clamp(170px, 23vw, 320px));
+}
+
+.hud.chat-expanded .quick-actions {
+    grid-area: quick-actions;
+}
+
+.hud.chat-expanded .action-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+}
+
+.hud.chat-expanded .conversation {
+    grid-area: conversation;
+    min-width: 0;
+    min-height: 0;
+}
+
+.hud.chat-expanded .conversation-header {
+    min-height: 40px;
+    padding: 6px clamp(14px, 2vw, 24px);
+    font-size: 10px;
+}
+
+.hud.chat-expanded .conversation-state {
+    font-size: 9px;
+}
+
+.hud.chat-expanded .expand-chat-button {
+    padding: 5px 9px;
+    font-size: 8px;
 }
 
 .hud.chat-expanded .messages {
-    flex-basis: 130px;
+    flex: 1 1 0;
+    min-height: 0;
+    padding: 10px clamp(14px, 2vw, 28px);
+}
+
+.hud.chat-expanded .message {
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.hud.chat-expanded .message-label {
+    font-size: 10px;
+}
+
+.hud.chat-expanded .message-text {
+    font-size: clamp(12px, .9vw, 14px);
+    line-height: 1.65;
+}
+
+.hud.chat-expanded #commandInput {
+    font-size: 13px;
+}
+
+.hud.chat-expanded .composer-hint,
+.hud.chat-expanded .voice-tools > summary {
+    font-size: 8px;
 }
 
 .right-panel {
@@ -971,8 +1109,7 @@ summary:focus-visible {
 
 .task-entry,
 .provider-detail,
-.memory-detail,
-.unavailable-detail {
+.memory-detail {
     min-width: 0;
     display: flex;
     align-items: center;
@@ -981,8 +1118,7 @@ summary:focus-visible {
 
 .task-entry > span:nth-child(2),
 .provider-detail > span:nth-child(2),
-.memory-detail > span:nth-child(2),
-.unavailable-detail > span:nth-child(2) {
+.memory-detail > span:nth-child(2) {
     min-width: 0;
     flex: 1;
 }
@@ -992,16 +1128,13 @@ summary:focus-visible {
 .provider-detail strong,
 .provider-detail small,
 .memory-detail strong,
-.memory-detail small,
-.unavailable-detail strong,
-.unavailable-detail small {
+.memory-detail small {
     display: block;
 }
 
 .task-entry strong,
 .provider-detail strong,
-.memory-detail strong,
-.unavailable-detail strong {
+.memory-detail strong {
     overflow: hidden;
     color: #cbd2d5;
     font-size: 9px;
@@ -1012,8 +1145,7 @@ summary:focus-visible {
 
 .task-entry small,
 .provider-detail small,
-.memory-detail small,
-.unavailable-detail small {
+.memory-detail small {
     margin-top: 3px;
     color: #8f9a9f;
     font-size: 8px;
@@ -1137,10 +1269,6 @@ summary:focus-visible {
 .voice-directions b {
     color: #c9d0d3;
     font-weight: 400;
-}
-
-.unavailable-detail {
-    align-items: flex-start;
 }
 
 .telemetry-footer {
@@ -1311,27 +1439,6 @@ summary:focus-visible {
     font-size: 7px;
 }
 
-.hud.left-panel-collapsed .workspace {
-    grid-template-columns: 0 minmax(0, 1fr) minmax(235px, 20.8%);
-}
-
-.hud.left-panel-collapsed .left-panel,
-.hud.right-panel-collapsed .right-panel {
-    display: none;
-}
-
-.hud.right-panel-collapsed .workspace {
-    grid-template-columns: minmax(160px, 16.1%) minmax(0, 1fr);
-}
-
-.hud.right-panel-collapsed .telemetry-footer {
-    grid-column: 1 / -1;
-}
-
-.hud.left-panel-collapsed.right-panel-collapsed .workspace {
-    grid-template-columns: minmax(0, 1fr);
-}
-
 .atlas-offline #systemStatusItem[data-status="offline"] strong {
     color: #d29393;
 }
@@ -1374,8 +1481,16 @@ summary:focus-visible {
         padding-left: 19px;
     }
 
+    .hud.chat-expanded .core-area {
+        grid-template-columns: minmax(0, 1fr) minmax(150px, 28%);
+    }
+
+    .hud.chat-expanded .orb {
+        width: min(100%, clamp(150px, 19vw, 260px));
+    }
+
     .hero {
-        grid-template-columns: minmax(125px, .72fr) minmax(200px, 1.15fr);
+        grid-template-columns: minmax(0, .72fr) minmax(0, 1.15fr);
     }
 
     .hero-aside {
@@ -1436,8 +1551,8 @@ summary:focus-visible {
 
     .top-status-item {
         min-height: 25px;
-        gap: 5px;
-        padding: 0 6px;
+        gap: 3px;
+        padding: 0 3px;
         border: 0;
     }
 
@@ -1462,8 +1577,8 @@ summary:focus-visible {
     }
 
     .clock {
-        min-width: 53px;
-        padding-left: 3px;
+        min-width: 45px;
+        padding-left: 0;
         font-size: 8px;
     }
 
@@ -1479,10 +1594,36 @@ summary:focus-visible {
         grid-column: 1;
         grid-row: 2;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(650px, auto) auto;
+        grid-template-rows: auto auto auto;
+        transition: grid-template-rows var(--panel-transition);
+    }
+
+    .left-panel,
+    .right-panel {
+        min-height: 0;
+        interpolate-size: allow-keywords;
+        transition: height var(--panel-transition), opacity .18s ease;
+    }
+
+    .hud.left-panel-collapsed .workspace .left-panel,
+    .hud.right-panel-collapsed .workspace .right-panel {
+        display: flex;
+        height: 0;
+        min-height: 0;
+        padding-block: 0;
+        border-width: 0;
+        overflow: hidden;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    .hud.right-panel-collapsed .workspace .right-panel {
+        display: grid;
     }
 
     .left-panel {
+        grid-column: 1;
         grid-row: 1;
         padding: 7px 10px;
         overflow: visible;
@@ -1491,7 +1632,7 @@ summary:focus-visible {
     }
 
     .main-nav {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 3px;
     }
 
@@ -1518,6 +1659,7 @@ summary:focus-visible {
     }
 
     .core-area {
+        grid-column: 1;
         grid-row: 2;
         min-height: 650px;
         grid-template-rows: minmax(260px, 1fr) auto minmax(155px, 32%);
@@ -1525,7 +1667,39 @@ summary:focus-visible {
     }
 
     .hero {
-        grid-template-columns: minmax(100px, .75fr) minmax(180px, 1.2fr);
+        grid-template-columns: minmax(0, .75fr) minmax(0, 1.2fr);
+    }
+
+    .hud.chat-expanded .core-area {
+        min-height: 650px;
+        grid-template-columns: minmax(0, 1fr) minmax(82px, 24%);
+        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-areas:
+            "quick-actions hero"
+            "conversation hero";
+        gap: 10px;
+        overflow: hidden;
+    }
+
+    .hud.chat-expanded .hero {
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    .hud.chat-expanded .greeting {
+        display: none;
+    }
+
+    .hud.chat-expanded .orb {
+        width: 100%;
+    }
+
+    .hud.chat-expanded .orb-caption {
+        font-size: 7px;
+        letter-spacing: .5px;
+    }
+
+    .hud.chat-expanded .action-grid {
+        padding-top: 6px;
     }
 
     .greeting {
@@ -1537,6 +1711,7 @@ summary:focus-visible {
     }
 
     .right-panel {
+        grid-column: 1;
         grid-row: 3;
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1570,24 +1745,11 @@ summary:focus-visible {
         border-top: 1px solid var(--line);
     }
 
-    .hud.left-panel-collapsed .workspace,
-    .hud.right-panel-collapsed .workspace {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .hud.left-panel-collapsed .telemetry-footer,
-    .hud.right-panel-collapsed .telemetry-footer {
-        grid-column: 1;
-    }
 }
 
 @media (max-width: 540px) {
-    .workspace {
-        grid-template-rows: auto minmax(620px, auto) auto;
-    }
-
     .main-nav {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .nav-item {
@@ -1602,8 +1764,15 @@ summary:focus-visible {
     }
 
     .hero {
-        grid-template-columns: minmax(78px, .66fr) minmax(165px, 1.25fr);
+        grid-template-columns: minmax(0, .66fr) minmax(0, 1.25fr);
         min-height: 250px;
+    }
+
+    .hud.chat-expanded .core-area {
+        min-height: 620px;
+        grid-template-columns: minmax(0, 1fr) minmax(74px, 25%);
+        gap: 8px;
+        padding: 10px 11px;
     }
 
     .greeting {
@@ -1611,15 +1780,15 @@ summary:focus-visible {
     }
 
     .eyebrow {
-        font-size: 7px;
+        font-size: 8px;
     }
 
     .greeting h1 {
-        font-size: 17px;
+        font-size: clamp(18px, 5vw, 22px);
     }
 
     .greeting p {
-        font-size: 8px;
+        font-size: 9px;
     }
 
     .desktop-break {

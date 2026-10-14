@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import os
 import tempfile
 import unittest
 import uuid
@@ -28,6 +29,13 @@ from memory.manager import (
 
 class MemoryStorageTests(unittest.TestCase):
     def setUp(self):
+        self.provider_patch = patch.dict(
+            os.environ,
+            {"AI_PROVIDER": "gemini"},
+        )
+        self.provider_patch.start()
+        self.addCleanup(self.provider_patch.stop)
+
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
         self.memory_path = Path(self.temp_dir.name) / "memory.json"
@@ -371,7 +379,7 @@ class MemoryStorageTests(unittest.TestCase):
         remember_memory("project", "cyberdeck", "project")
         atlas = Atlas()
 
-        with patch.object(atlas_module, "ask_gemini") as ask_gemini:
+        with patch.object(atlas_module, "ask_ai") as ask_gemini:
             response = atlas.process("What are my two latest projects?")
 
         ask_gemini.assert_not_called()
@@ -408,7 +416,7 @@ class MemoryStorageTests(unittest.TestCase):
 
     def test_absent_memory_question_gets_an_honest_answer_without_ai(self):
         atlas = Atlas()
-        with patch.object(atlas_module, "ask_gemini") as ask_gemini:
+        with patch.object(atlas_module, "ask_ai") as ask_gemini:
             response = atlas.process(
                 "What do you remember about MISSING-THING?"
             )
@@ -490,7 +498,7 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
     def test_atlas_gemini_request_and_event_log_flow_remains_wired(self):
         atlas = Atlas()
         with patch.object(
-            atlas_module, "ask_gemini", return_value="Gemini response"
+            atlas_module, "ask_ai", return_value="Gemini response"
         ) as ask_gemini, patch.object(atlas_module, "log_event") as log_event:
             self.assertEqual(atlas.process("Tell me a story"), "Gemini response")
 
@@ -531,7 +539,7 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
             ),
             "Your test robot is named Copperhead.",
         )
-        with patch.object(atlas_module, "ask_gemini") as ask_gemini:
+        with patch.object(atlas_module, "ask_ai") as ask_gemini:
             response = Atlas().process("What's my missing pet's name?")
         ask_gemini.assert_not_called()
         self.assertEqual(
@@ -569,6 +577,7 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
             patch(
                 "builtins.input",
                 side_effect=[
+                    "1",
                     "My test robot is named Copperhead.",
                     "I'm really into robotics.",
                     "I'm tired today.",
@@ -578,7 +587,7 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
             ),
             patch("builtins.print"),
             patch(
-                "core.atlas.ask_gemini",
+                "core.atlas.ask_ai",
                 side_effect=unavailable,
             ) as ask_gemini,
         ):
@@ -609,7 +618,7 @@ conversations.CONVERSATIONS_FILE = Path(sys.argv[3])
 def unexpected_ai_call(message):
     raise AssertionError("A deterministic memory query called Gemini")
 
-atlas_module.ask_gemini = unexpected_ai_call
+atlas_module.ask_ai = unexpected_ai_call
 atlas = Atlas()
 assert atlas.process("What is my test robot called?") == (
     "Your test robot is named Copperhead."
@@ -720,7 +729,7 @@ assert [message["role"] for message in exchange["messages"]] == [
             "I don't have any hardware components recorded as chosen "
             "for cyberdeck.",
         )
-        with patch.object(atlas_module, "ask_gemini") as ask_gemini:
+        with patch.object(atlas_module, "ask_ai") as ask_gemini:
             response = Atlas().process(
                 "What hardware have I explicitly chosen for my cyberdeck?"
             )
@@ -734,7 +743,7 @@ assert [message["role"] for message in exchange["messages"]] == [
     def test_explicit_project_choice_can_be_recalled(self):
         with patch.object(
             atlas_module,
-            "ask_gemini",
+            "ask_ai",
             return_value="Got it.",
         ):
             Atlas().process(
@@ -759,7 +768,7 @@ assert [message["role"] for message in exchange["messages"]] == [
         )
         with patch.object(
             atlas_module,
-            "ask_gemini",
+            "ask_ai",
             return_value="I can help plan it.",
         ) as ask_gemini:
             Atlas().process("Can you help me with my cyberdeck?")

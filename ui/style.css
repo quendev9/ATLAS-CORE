@@ -903,6 +903,63 @@ summary:focus-visible {
     position: relative;
 }
 
+.model-tools {
+    position: relative;
+    margin-left: auto;
+    margin-right: 14px;
+}
+
+.model-tools > summary {
+    color: #aab4b8;
+    cursor: pointer;
+    font-size: 7px;
+    letter-spacing: .6px;
+    list-style: none;
+}
+
+.model-tools > summary::-webkit-details-marker {
+    display: none;
+}
+
+.model-controls {
+    position: absolute;
+    z-index: 5;
+    right: 0;
+    bottom: 22px;
+    width: min(300px, 82vw);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #30383d;
+    border-radius: 8px;
+    background: #111518;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .42);
+}
+
+.model-controls label,
+.model-controls #aiModelSelectionStatus {
+    grid-column: 1 / -1;
+    color: #9ba6ab;
+    font-size: 8px;
+}
+
+.model-controls select {
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid #343d42;
+    border-radius: 5px;
+    background: #171d20;
+    color: #c9d0d3;
+    font-size: 9px;
+}
+
+.model-controls button:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
 .voice-tools > summary {
     color: #aab4b8;
     cursor: pointer;

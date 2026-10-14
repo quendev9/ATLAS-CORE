@@ -16,6 +16,9 @@ const conversationState = document.querySelector(".conversation-state");
 const toggleLeftPanelButton = document.getElementById("toggleLeftPanel");
 const toggleRightPanelButton = document.getElementById("toggleRightPanel");
 const toggleSidePanelsButton = document.getElementById("toggleSidePanels");
+const aiModelSelect = document.getElementById("aiModelSelect");
+const applyAIModelButton = document.getElementById("applyAIModelButton");
+const aiModelSelectionStatus = document.getElementById("aiModelSelectionStatus");
 
 // ==================================================
 // HUD STATE
@@ -31,6 +34,8 @@ let voiceSessionActive = false;
 let voiceSessionStopping = false;
 let voiceSpeaking = false;
 let statusRequestId = 0;
+let aiModelSelectionDirty = false;
+let aiModelSelectionSaving = false;
 let lastVoiceEventId = 0;
 let lastVoiceResponseId = 0;
 let taskStartedAt = null;
@@ -252,6 +257,10 @@ document.querySelectorAll(".nav-item").forEach((link) => {
         if (link.getAttribute("href") === "#voiceSettings") {
             const voiceSettings = document.getElementById("voiceSettings");
             if (voiceSettings) voiceSettings.open = true;
+        }
+        if (link.getAttribute("href") === "#modelSettings") {
+            const modelSettings = document.getElementById("modelSettings");
+            if (modelSettings) modelSettings.open = true;
         }
     });
 });
@@ -493,6 +502,60 @@ function setMeter(id, percentage) {
     element.style.height = `${safePercentage}%`;
 }
 
+function syncAIModelControls(data) {
+    if (!aiModelSelect || !Array.isArray(data.ai_models)) return;
+
+    const selection = data.ai_selection || {
+        provider: data.ai_provider?.toLowerCase(),
+        model: data.ai_model
+    };
+    aiModelSelect.dataset.activeProvider = selection.provider || "";
+    aiModelSelect.dataset.activeModel = selection.model || "";
+
+    if (!aiModelSelectionDirty) {
+        const currentOptions = Array.from(aiModelSelect.options);
+        const optionsChanged = currentOptions.length !== data.ai_models.length ||
+            data.ai_models.some((entry, index) =>
+                currentOptions[index]?.value !== entry.provider ||
+                currentOptions[index]?.dataset.model !== entry.model
+            );
+        if (optionsChanged) {
+            const options = data.ai_models.map((entry) => {
+                const option = document.createElement("option");
+                option.value = entry.provider;
+                option.dataset.model = entry.model;
+                option.textContent = `${entry.name} — ${entry.model}`;
+                return option;
+            });
+            aiModelSelect.replaceChildren(...options);
+        }
+
+        const selectedOption = Array.from(aiModelSelect.options).find(
+            (option) =>
+                option.value === selection.provider &&
+                option.dataset.model === selection.model
+        );
+        if (selectedOption) {
+            aiModelSelect.value = selectedOption.value;
+        }
+    }
+
+    const selectedOption = aiModelSelect.selectedOptions[0];
+    const isDirty = aiModelSelectionDirty &&
+        selectedOption &&
+        (
+            selectedOption.value !== selection.provider ||
+            selectedOption.dataset.model !== selection.model
+        );
+    if (applyAIModelButton) {
+        applyAIModelButton.disabled = !isDirty || aiModelSelectionSaving;
+    }
+    if (!aiModelSelectionDirty && aiModelSelectionStatus) {
+        aiModelSelectionStatus.textContent =
+            `Active: ${data.ai_provider} — ${data.ai_model}`;
+    }
+}
+
 // ==================================================
 // LIVE HUD TELEMETRY
 // ==================================================
@@ -520,6 +583,7 @@ async function updateHUDStatus() {
         setText("providerCardName", data.ai_provider || "Unavailable");
         setText("providerCardModel", data.ai_model || "Model not reported");
         setText("providerCardStatus", data.ai || "UNKNOWN");
+        syncAIModelControls(data);
 
         // MEMORY
         setText("memoryStatus", data.memory || "UNKNOWN");
@@ -697,6 +761,86 @@ async function updateHUDStatus() {
 
         document.body.classList.add("atlas-offline");
     }
+}
+
+if (aiModelSelect) {
+    aiModelSelect.addEventListener("change", () => {
+        const selectedOption = aiModelSelect.selectedOptions[0];
+        aiModelSelectionDirty = Boolean(
+            selectedOption &&
+            (
+                selectedOption.value !== aiModelSelect.dataset.activeProvider ||
+                selectedOption.dataset.model !== aiModelSelect.dataset.activeModel
+            )
+        );
+        if (aiModelSelectionDirty && aiModelSelectionStatus) {
+            aiModelSelectionStatus.textContent = "Selection not applied.";
+        }
+        syncAIModelControls({
+            ai_models: Array.from(aiModelSelect.options).map((option) => ({
+                provider: option.value,
+                model: option.dataset.model,
+                name: option.textContent.split(" — ", 1)[0]
+            })),
+            ai_selection: {
+                provider: aiModelSelect.dataset.activeProvider,
+                model: aiModelSelect.dataset.activeModel
+            }
+        });
+    });
+}
+
+if (applyAIModelButton) {
+    applyAIModelButton.addEventListener("click", async () => {
+        const option = aiModelSelect?.selectedOptions[0];
+        if (!option || !option.dataset.model || aiModelSelectionSaving) return;
+
+        aiModelSelectionSaving = true;
+        applyAIModelButton.disabled = true;
+        if (aiModelSelectionStatus) {
+            aiModelSelectionStatus.textContent = "Applying selection...";
+        }
+
+        try {
+            await apiRequest("/api/ai/model", {
+                method: "POST",
+                body: JSON.stringify({
+                    provider: option.value,
+                    model: option.dataset.model
+                })
+            });
+            aiModelSelectionDirty = false;
+            if (aiModelSelectionStatus) {
+                aiModelSelectionStatus.textContent = "Selection applied.";
+            }
+            await updateHUDStatus();
+        } catch (error) {
+            console.error("ATLAS AI MODEL SELECTION ERROR:", error);
+            if (aiModelSelectionStatus) {
+                aiModelSelectionStatus.textContent =
+                    `Could not apply selection: ${error.message}`;
+            }
+        } finally {
+            aiModelSelectionSaving = false;
+            syncAIModelControlsFromCurrent();
+        }
+    });
+}
+
+function syncAIModelControlsFromCurrent() {
+    if (!aiModelSelect || !applyAIModelButton) return;
+    const activeOption = Array.from(aiModelSelect.options).find(
+        (option) =>
+            option.value === aiModelSelect.dataset.activeProvider &&
+            option.dataset.model === aiModelSelect.dataset.activeModel
+    );
+    const selectedOption = aiModelSelect.selectedOptions[0];
+    const isDirty = selectedOption &&
+        (
+            selectedOption.value !== activeOption?.value ||
+            selectedOption.dataset.model !== activeOption?.dataset.model
+        );
+    applyAIModelButton.disabled = !isDirty || aiModelSelectionSaving;
 }
 
 // ==================================================

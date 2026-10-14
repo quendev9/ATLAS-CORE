@@ -176,6 +176,7 @@ def get_system_data():
 def get_status():
     state = get_state_snapshot()
     memory_count = get_memory_count()
+    ai_info = ai.model.get_ai_provider_info() if AI_AVAILABLE else None
 
     return {
         "core": (
@@ -183,11 +184,19 @@ def get_status():
         ),
         "ai": (
             "CONFIGURED"
-            if AI_AVAILABLE and os.getenv("GEMINI_API_KEY")
+            if ai_info and ai_info["configured"]
             else "NOT CONFIGURED" if AI_AVAILABLE else "OFFLINE"
         ),
-        "ai_provider": "Gemini" if AI_AVAILABLE else "Unavailable",
-        "ai_model": "gemini-3.6-flash" if AI_AVAILABLE else None,
+        "ai_provider": (
+            ai_info["provider"] if ai_info else "Unavailable"
+        ),
+        "ai_model": ai_info["model"] if ai_info else None,
+        "ai_selection": (
+            ai_info["selection"] if ai_info else None
+        ),
+        "ai_models": (
+            ai.model.get_available_ai_models() if AI_AVAILABLE else []
+        ),
         "memory": (
             "ACTIVE" if memory_count is not None
             else "ERROR" if MEMORY_AVAILABLE else "OFFLINE"
@@ -503,6 +512,10 @@ class AtlasHandler(BaseHTTPRequestHandler):
             self.handle_chat()
             return
 
+        if path == "/api/ai/model":
+            self.handle_ai_model_selection()
+            return
+
         if path == "/api/voice/listen":
             self.handle_voice_listen()
             return
@@ -532,6 +545,32 @@ class AtlasHandler(BaseHTTPRequestHandler):
     # -----------------------------------------------------
     # TEXT CHAT
     # -----------------------------------------------------
+
+    def handle_ai_model_selection(self):
+        data = read_json_body(self)
+
+        if data is None:
+            send_json(self, {"error": "Invalid JSON."}, 400)
+            return
+
+        if not AI_AVAILABLE:
+            send_json(self, {"error": "AI module is unavailable."}, 503)
+            return
+
+        try:
+            selection = ai.model.set_ai_selection(
+                data.get("provider"),
+                data.get("model"),
+            )
+        except ValueError as error:
+            send_json(self, {"error": str(error)}, 400)
+            return
+
+        log_event(
+            "AI MODEL SELECTED - "
+            f"{selection['provider']} / {selection['model']}"
+        )
+        send_json(self, {"selection": selection})
 
     def handle_chat(self):
         data = read_json_body(self)

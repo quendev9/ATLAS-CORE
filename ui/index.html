@@ -58,7 +58,7 @@
                     <a class="nav-item" href="#memory-activity">
                         <span class="nav-icon" aria-hidden="true">▤</span><span><strong>Memory</strong><small>Facts, projects &amp; knowledge</small></span>
                     </a>
-                    <a class="nav-item" href="#voiceSettings">
+                    <a class="nav-item" href="#modelSettings">
                         <span class="nav-icon" aria-hidden="true">⚙</span><span><strong>Settings</strong><small>Preferences &amp; configuration</small></span>
                     </a>
                 </nav>
@@ -153,6 +153,17 @@
                     </div>
                     <div class="composer-tools">
                         <span class="composer-hint">Enter to send</span>
+                        <details class="model-tools" id="modelSettings">
+                            <summary>AI MODEL</summary>
+                            <div class="model-controls">
+                                <label for="aiModelSelect">Use provider/model for new requests</label>
+                                <select id="aiModelSelect" aria-describedby="aiModelSelectionStatus">
+                                    <option>Loading models...</option>
+                                </select>
+                                <button id="applyAIModelButton" class="voice-button" type="button" disabled>APPLY</button>
+                                <span id="aiModelSelectionStatus" role="status" aria-live="polite"></span>
+                            </div>
+                        </details>
                         <details class="voice-tools" id="voiceSettings">
                             <summary>VOICE SETTINGS</summary>
                             <div class="voice-controls">

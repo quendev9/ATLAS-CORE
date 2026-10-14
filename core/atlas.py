@@ -1,6 +1,10 @@
 import re
 
-from ai.model import ask_gemini, is_transient_api_error
+from ai.model import (
+    ask_ai,
+    get_ai_provider_info,
+    is_transient_api_error,
+)
 
 from memory.manager import (
     remember_memory,
@@ -27,6 +31,24 @@ class Atlas:
     MODEL_UNAVAILABLE_RESPONSE = (
         "I'm having trouble reaching Gemini right now. "
         "Please try again in a moment."
+    )
+    MODEL_RATE_LIMIT_RESPONSE = (
+        "Gemini is limiting requests or the project's quota may be exhausted. "
+        "Check the project's Gemini API usage and quota, then try again."
+    )
+    MODEL_AUTHENTICATION_RESPONSE = (
+        "Gemini rejected the API credentials. Check the Gemini API key."
+    )
+    MODEL_PERMISSION_RESPONSE = (
+        "Gemini denied access to this request. Check the account's "
+        "permissions for the selected model."
+    )
+    MODEL_NOT_FOUND_RESPONSE = (
+        "The selected Gemini model is unavailable. Check the configured "
+        "model name and provider access."
+    )
+    MODEL_SERVER_ERROR_RESPONSE = (
+        "Gemini is experiencing a server error. Please try again later."
     )
 
     def __init__(self):
@@ -277,12 +299,13 @@ class Atlas:
         log_event("AI REQUEST STARTED")
 
         try:
-            response = ask_gemini(
+            response = ask_ai(
                 prompt,
                 conversation_id=source_conversation_id,
             )
 
         except Exception as error:
+            provider_name = get_ai_provider_info()["provider"]
             status_code = getattr(error, "status_code", None)
 
             if not isinstance(status_code, int) or isinstance(
@@ -301,6 +324,12 @@ class Atlas:
                     f"AI REQUEST FAILED - {type(error).__name__}"
                 )
 
+            error_detail = str(error).strip()
+            if error_detail:
+                failure_message = (
+                    f"{failure_message}: {error_detail[:500]}"
+                )
+
             log_event(failure_message)
 
             try:
@@ -313,9 +342,46 @@ class Atlas:
             except Exception:
                 log_event("FAILED TO SAVE AI ERROR TO CONVERSATION")
 
+            if status_code == 429:
+                failure_response = self.MODEL_RATE_LIMIT_RESPONSE.replace(
+                    "Gemini",
+                    provider_name,
+                )
+            elif status_code == 401:
+                failure_response = (
+                    self.MODEL_AUTHENTICATION_RESPONSE.replace(
+                        "Gemini",
+                        provider_name,
+                    )
+                )
+            elif status_code == 403:
+                failure_response = self.MODEL_PERMISSION_RESPONSE.replace(
+                    "Gemini",
+                    provider_name,
+                )
+            elif status_code == 404:
+                failure_response = self.MODEL_NOT_FOUND_RESPONSE.replace(
+                    "Gemini",
+                    provider_name,
+                )
+            elif (
+                isinstance(status_code, int)
+                and not isinstance(status_code, bool)
+                and 500 <= status_code <= 599
+            ):
+                failure_response = self.MODEL_SERVER_ERROR_RESPONSE.replace(
+                    "Gemini",
+                    provider_name,
+                )
+            else:
+                failure_response = self.MODEL_UNAVAILABLE_RESPONSE.replace(
+                    "Gemini",
+                    provider_name,
+                )
+
             self._record_message(
                 "assistant",
-                self.MODEL_UNAVAILABLE_RESPONSE,
+                failure_response,
                 conversation_id=source_conversation_id,
                 project=source_project,
             )
@@ -324,7 +390,7 @@ class Atlas:
             else:
                 log_event("AI RESPONSE FALLBACK - NON-TRANSIENT FAILURE")
             self.state = "ready"
-            return self.MODEL_UNAVAILABLE_RESPONSE
+            return failure_response
 
         if not isinstance(response, str):
             response = str(response)

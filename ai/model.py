@@ -1,3 +1,4 @@
+
 import json
 import os
 import re
@@ -114,8 +115,9 @@ def get_ai_provider_info():
         "groq": "Groq",
         "openrouter": "OpenRouter",
     }
+
     if provider == "gemini":
-        configured = bool(os.getenv("GEMINI_API_KEY"))
+        configured = bool(os.getenv("GEMINI_API_KEY", "").strip())
     elif provider == "groq":
         configured = bool(_get_groq_api_keys())
     elif provider == "openrouter":
@@ -141,7 +143,7 @@ def _get_groq_api_keys():
     for configured_value in configured_keys:
         keys.extend(
             key.strip()
-            for key in re.split(r"[,\r\n]+", configured_value)
+            for key in re.split(r"[, \r\n]+", configured_value)
             if key.strip()
         )
 
@@ -164,6 +166,7 @@ class GroqAPIError(RuntimeError):
         safe_message = str(message)
         for api_key in _get_groq_api_keys():
             safe_message = safe_message.replace(api_key, "[REDACTED]")
+
         super().__init__(safe_message)
         self.code = status_code
         self.status_code = status_code
@@ -171,6 +174,7 @@ class GroqAPIError(RuntimeError):
 
 def _provider_error_message(error, provider_name):
     response_body = error.read()
+
     try:
         payload = json.loads(response_body.decode("utf-8"))
     except (UnicodeError, ValueError):
@@ -181,6 +185,7 @@ def _provider_error_message(error, provider_name):
 
     if isinstance(payload, dict):
         detail = payload.get("error")
+
         if isinstance(detail, dict):
             message = detail.get("message")
             additional_details = [
@@ -193,9 +198,11 @@ def _provider_error_message(error, provider_name):
             if isinstance(message, str) and message.strip():
                 suffix = (
                     f" ({', '.join(additional_details)})"
-                    if additional_details else ""
+                    if additional_details
+                    else ""
                 )
                 return f"{message.strip()}{suffix}"[:500]
+
             if additional_details:
                 return ", ".join(additional_details)[:500]
 
@@ -210,7 +217,7 @@ def _groq_error_message(error):
 
 
 def ask_groq(message, conversation_id=None, model_name=None):
-    """Send a prompt to Groq, rotating through configured API keys."""
+    """Send a prompt to Groq, rotating keys for retryable key-specific errors."""
     del conversation_id  # Conversation context is already in the prompt.
 
     with _request_lock:
@@ -225,17 +232,20 @@ def ask_groq(message, conversation_id=None, model_name=None):
             "model": model_name,
             "messages": [{"role": "user", "content": message}],
         }).encode("utf-8")
+
         first_key_index = _next_groq_key_index(len(api_keys))
         last_error = None
 
         for offset in range(len(api_keys)):
             api_key = api_keys[(first_key_index + offset) % len(api_keys)]
+
             request = Request(
                 GROQ_API_URL,
                 data=request_body,
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
+                    "User-Agent": "ATLAS-Core/1.0",
                 },
                 method="POST",
             )
@@ -243,13 +253,22 @@ def ask_groq(message, conversation_id=None, model_name=None):
             try:
                 with urlopen(request, timeout=60) as response:
                     payload = json.loads(response.read().decode("utf-8"))
+
             except HTTPError as error:
                 last_error = GroqAPIError(
                     error.code,
                     _groq_error_message(error),
                 )
-                if error.code not in (401, 403, 429):
+
+                # A 403 can be an edge-protection block. Retrying other keys
+                # won't fix that, so surface the error immediately.
+                if error.code == 403:
                     raise last_error from error
+
+                # Retry another key for authentication failures or rate limits.
+                if error.code not in (401, 429):
+                    raise last_error from error
+
                 continue
 
             try:
@@ -263,9 +282,13 @@ def ask_groq(message, conversation_id=None, model_name=None):
                 raise RuntimeError(
                     "Groq returned message content in an unsupported format."
                 )
+
             return content
 
-        raise last_error
+        if last_error is not None:
+            raise last_error
+
+        raise RuntimeError("Groq request failed without a provider error.")
 
 
 class OpenRouterAPIError(RuntimeError):
@@ -274,8 +297,10 @@ class OpenRouterAPIError(RuntimeError):
     def __init__(self, status_code, message):
         safe_message = str(message)
         api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+
         if api_key:
             safe_message = safe_message.replace(api_key, "[REDACTED]")
+
         super().__init__(safe_message)
         self.code = status_code
         self.status_code = status_code
@@ -296,6 +321,7 @@ def ask_openrouter(message, conversation_id=None, model_name=None):
             "model": model_name or _configured_openrouter_model(),
             "messages": [{"role": "user", "content": message}],
         }).encode("utf-8")
+
         request = Request(
             OPENROUTER_API_URL,
             data=request_body,
@@ -326,6 +352,7 @@ def ask_openrouter(message, conversation_id=None, model_name=None):
             raise RuntimeError(
                 "OpenRouter returned message content in an unsupported format."
             )
+
         return content
 
 
@@ -337,6 +364,7 @@ def _get_chat(conversation_id=None):
             cached_chat = _chat
         else:
             cached_chat = _conversation_chats.get(conversation_id)
+
         if cached_chat is not None:
             return cached_chat
 
@@ -348,6 +376,7 @@ def _get_chat(conversation_id=None):
                 )
 
             client = genai.Client(api_key=api_key)
+
             try:
                 chat = client.chats.create(
                     model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
@@ -366,6 +395,7 @@ def _get_chat(conversation_id=None):
             _chat = chat
         else:
             _conversation_chats[conversation_id] = chat
+
         return chat
 
 
@@ -410,6 +440,7 @@ def close_gemini():
 def _ask_gemini_selected(message, conversation_id, model_name):
     if model_name != _configured_gemini_model():
         raise ValueError("The selected Gemini model is no longer configured.")
+
     return ask_gemini(message, conversation_id=conversation_id)
 
 
@@ -440,6 +471,7 @@ def ask_ai(message, conversation_id=None):
     """Dispatch a prompt through the selected provider adapter."""
     selection = get_ai_selection()
     adapter = _AI_PROVIDER_ADAPTERS.get(selection["provider"])
+
     if adapter is None:
         raise ValueError(
             f"Unsupported AI provider: {selection['provider']}"

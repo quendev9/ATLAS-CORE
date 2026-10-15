@@ -106,7 +106,7 @@ function setOrbState(state) {
         speaking: "SPEAKING",
         "tool-execution": "TOOL EXECUTION"
     };
-    coreOrb.setAttribute("aria-label", `ATLAS assistant ${labels[state] || labels.idle.toLowerCase()}`);
+    coreOrb.setAttribute("aria-label", `LEWIS assistant ${labels[state] || labels.idle.toLowerCase()}`);
     if (label) label.textContent = labels[state] || labels.idle;
 }
 
@@ -156,9 +156,9 @@ async function sendCommand(command) {
             body: JSON.stringify({ message: command })
         });
 
-        const answer = data.response ?? "ATLAS returned an empty response.";
+        const answer = data.response ?? "LEWIS returned an empty response.";
 
-        addMessage("ATLAS", answer);
+        addMessage("LEWIS", answer);
 
         // Read chat replies aloud when voice output is enabled.
         if (voiceEnabled && answer.trim()) {
@@ -167,11 +167,11 @@ async function sendCommand(command) {
 
         return answer;
     } catch (error) {
-        console.error("ATLAS API ERROR:", error);
+        console.error("LEWIS API ERROR:", error);
 
         addMessage(
             "SYSTEM",
-            "ATLAS Core connection error: " + error.message
+            "LEWIS Core connection error: " + error.message
         );
 
         setConversationState("ERROR");
@@ -343,7 +343,7 @@ async function startVoiceSession() {
         voiceSessionStopping = false;
         addMessage("SYSTEM", data.message || "Voice session started.");
     } catch (error) {
-        console.error("ATLAS VOICE SESSION ERROR:", error);
+        console.error("LEWIS VOICE SESSION ERROR:", error);
         addMessage("SYSTEM", "Could not start voice session: " + error.message);
         setConversationState("ERROR");
     } finally {
@@ -379,7 +379,7 @@ async function stopVoiceSession() {
             data.activity === "STOPPING";
         addMessage("SYSTEM", data.message || "Voice session stopping.");
     } catch (error) {
-        console.error("ATLAS VOICE SESSION STOP ERROR:", error);
+        console.error("LEWIS VOICE SESSION STOP ERROR:", error);
         addMessage("SYSTEM", "Could not stop voice session: " + error.message);
         setConversationState("ERROR");
     } finally {
@@ -407,7 +407,7 @@ async function speakResponse(text) {
             body: JSON.stringify({ text })
         });
     } catch (error) {
-        console.error("ATLAS VOICE OUTPUT ERROR:", error);
+        console.error("LEWIS VOICE OUTPUT ERROR:", error);
 
         addMessage(
             "SYSTEM",
@@ -427,7 +427,7 @@ async function stopSpeaking() {
             addMessage("SYSTEM", data.message);
         }
     } catch (error) {
-        console.error("ATLAS STOP SPEECH ERROR:", error);
+        console.error("LEWIS STOP SPEECH ERROR:", error);
         addMessage("SYSTEM", "Could not stop speech: " + error.message);
     }
 }
@@ -461,7 +461,7 @@ async function setVoiceEnabled(enabled) {
             voiceEnabled ? "Spoken responses enabled." : "Spoken responses disabled."
         );
     } catch (error) {
-        console.error("ATLAS VOICE SETTINGS ERROR:", error);
+        console.error("LEWIS VOICE SETTINGS ERROR:", error);
 
         if (voiceToggle) {
             voiceToggle.checked = voiceEnabled;
@@ -642,7 +642,7 @@ async function updateHUDStatus() {
         setOrbState(orbState);
         setConversationState(processing ? "PROCESSING" : activity);
         setText("taskTitle", processing ? "Processing conversation" : "No active tasks");
-        setText("taskDescription", processing ? "Waiting for ATLAS response" : "Waiting for a request");
+        setText("taskDescription", processing ? "Waiting for LEWIS response" : "Waiting for a request");
         setText("taskDuration", taskStartedAt
             ? `${Math.max(0, Math.floor((Date.now() - taskStartedAt) / 1000))}s`
             : "—");
@@ -702,7 +702,7 @@ async function updateHUDStatus() {
         const voiceResponseId = Number(data.voice_response_id) || 0;
         if (voiceResponseId > lastVoiceResponseId && data.last_response) {
             lastVoiceResponseId = voiceResponseId;
-            addMessage("ATLAS", data.last_response);
+            addMessage("LEWIS", data.last_response);
         }
 
         if (data.last_error) {
@@ -711,11 +711,11 @@ async function updateHUDStatus() {
             setText("voiceError", "");
         }
 
-        document.body.classList.toggle("atlas-offline", !coreOnline);
+        document.body.classList.toggle("lewis-offline", !coreOnline);
     } catch (error) {
         if (requestId !== statusRequestId) return;
 
-        console.error("ATLAS STATUS ERROR:", error);
+        console.error("LEWIS STATUS ERROR:", error);
 
         setText("coreStatus", "OFFLINE");
         setText("aiStatus", "OFFLINE");
@@ -759,7 +759,7 @@ async function updateHUDStatus() {
         }
         setConversationState("OFFLINE");
 
-        document.body.classList.add("atlas-offline");
+        document.body.classList.add("lewis-offline");
     }
 }
 
@@ -815,7 +815,7 @@ if (applyAIModelButton) {
             }
             await updateHUDStatus();
         } catch (error) {
-            console.error("ATLAS AI MODEL SELECTION ERROR:", error);
+            console.error("LEWIS AI MODEL SELECTION ERROR:", error);
             if (aiModelSelectionStatus) {
                 aiModelSelectionStatus.textContent =
                     `Could not apply selection: ${error.message}`;
@@ -910,7 +910,7 @@ async function updateSystemLog() {
         const data = await apiRequest("/api/logs");
 
         if (!Array.isArray(data.logs)) {
-            console.warn("ATLAS SYSTEM LOG: invalid log format.");
+            console.warn("LEWIS SYSTEM LOG: invalid log format.");
             return;
         }
 
@@ -937,7 +937,7 @@ async function updateSystemLog() {
             logContainer.appendChild(line);
         });
     } catch (error) {
-        console.error("ATLAS LOG ERROR:", error);
+        console.error("LEWIS LOG ERROR:", error);
     }
 }
 
@@ -958,4 +958,4 @@ setInterval(updateClock, 30_000);
 // INITIAL MESSAGE
 // ==================================================
 
-addMessage("SYSTEM", "ATLAS HUD interface initialized.");
+addMessage("SYSTEM", "LEWIS HUD interface initialized.");

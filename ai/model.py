@@ -41,7 +41,7 @@ def _configured_openrouter_model():
 
 
 def get_available_ai_models():
-    """Return the provider/model choices that ATLAS can currently select."""
+    """Return the provider/model choices available to the assistant."""
     return [
         {
             "provider": "gemini",

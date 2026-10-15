@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" role="img" aria-labelledby="title">
+  <title id="title">LEWIS logo</title>
+  <path d="M13 6v25h20" fill="none" stroke="#aeb9be" stroke-linecap="square" stroke-linejoin="miter" stroke-width="2.5"/>
+  <path d="M13 6h6M33 25v6" fill="none" stroke="#aeb9be" stroke-linecap="square" stroke-width="2.5"/>
+  <circle cx="13" cy="6" r="2" fill="#aeb9be"/>
+  <circle cx="33" cy="31" r="2" fill="#aeb9be"/>
+</svg>

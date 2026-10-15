@@ -12,9 +12,9 @@ from unittest.mock import patch
 
 from google.genai.errors import ServerError
 
-import main as atlas_main
-from core import atlas as atlas_module
-from core.atlas import Atlas
+import main as lewis_main
+from core import lewis as lewis_module
+from core.lewis import Lewis
 from memory import conversations
 from memory import memory as memory_storage
 from memory import project_memory as project_memory_storage
@@ -96,7 +96,7 @@ class MemoryStorageTests(unittest.TestCase):
             "a cyberdeck, any suggestions",
         )
 
-    def test_legacy_and_atlas_capture_share_project_storage_and_deduplicate(self):
+    def test_legacy_and_lewis_capture_share_project_storage_and_deduplicate(self):
         statement = "My test robot is named Copperhead."
 
         legacy_result = process_memory(statement)
@@ -106,8 +106,8 @@ class MemoryStorageTests(unittest.TestCase):
         self.assertEqual(legacy_facts[0]["subject"], "test robot")
         self.assertEqual(get_memories(), [])
 
-        atlas = Atlas()
-        atlas._capture_automatic_memories(statement, "ATLAS")
+        lewis = Lewis()
+        lewis._capture_automatic_memories(statement, "ATLAS")
 
         active_facts = project_memory_storage.get_project_facts("ATLAS")
         self.assertEqual(len(active_facts), 1)
@@ -374,13 +374,13 @@ class MemoryStorageTests(unittest.TestCase):
             "Your latest projects are: cyberdeck, DUM-E.",
         )
 
-    def test_atlas_routes_latest_project_query_to_memory(self):
+    def test_lewis_routes_latest_project_query_to_memory(self):
         remember_memory("project", "DUM-E", "project")
         remember_memory("project", "cyberdeck", "project")
-        atlas = Atlas()
+        lewis = Lewis()
 
-        with patch.object(atlas_module, "ask_ai") as ask_gemini:
-            response = atlas.process("What are my two latest projects?")
+        with patch.object(lewis_module, "ask_ai") as ask_gemini:
+            response = lewis.process("What are my two latest projects?")
 
         ask_gemini.assert_not_called()
         self.assertEqual(
@@ -406,7 +406,7 @@ class MemoryStorageTests(unittest.TestCase):
 
         response = query_memory(
             "What is AXIS?",
-            project_name="atlas",
+            project_name="ATLAS",
         )
 
         self.assertEqual(
@@ -415,9 +415,9 @@ class MemoryStorageTests(unittest.TestCase):
         )
 
     def test_absent_memory_question_gets_an_honest_answer_without_ai(self):
-        atlas = Atlas()
-        with patch.object(atlas_module, "ask_ai") as ask_gemini:
-            response = atlas.process(
+        lewis = Lewis()
+        with patch.object(lewis_module, "ask_ai") as ask_gemini:
+            response = lewis.process(
                 "What do you remember about MISSING-THING?"
             )
 
@@ -483,24 +483,24 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
-    def test_existing_retrieval_apis_and_atlas_memory_flows_work(self):
-        atlas = Atlas()
-        self.assertEqual(atlas.process("remember name is Quen"), "I'll remember that.")
-        self.assertEqual(atlas.process("recall name"), "Quen")
+    def test_existing_retrieval_apis_and_lewis_memory_flows_work(self):
+        lewis = Lewis()
+        self.assertEqual(lewis.process("remember name is Quen"), "I'll remember that.")
+        self.assertEqual(lewis.process("recall name"), "Quen")
         self.assertEqual(
-            atlas.process("what is my name"),
+            lewis.process("what is my name"),
             "Your name is Quen.",
         )
         self.assertEqual(get_memories_by_category("other")[0]["value"], "Quen")
         self.assertEqual(get_memories()[0]["key"], "name")
         self.assertEqual(memory_storage.recall("name"), "Quen")
 
-    def test_atlas_gemini_request_and_event_log_flow_remains_wired(self):
-        atlas = Atlas()
+    def test_lewis_gemini_request_and_event_log_flow_remains_wired(self):
+        lewis = Lewis()
         with patch.object(
-            atlas_module, "ask_ai", return_value="Gemini response"
-        ) as ask_gemini, patch.object(atlas_module, "log_event") as log_event:
-            self.assertEqual(atlas.process("Tell me a story"), "Gemini response")
+            lewis_module, "ask_ai", return_value="Gemini response"
+        ) as ask_gemini, patch.object(lewis_module, "log_event") as log_event:
+            self.assertEqual(lewis.process("Tell me a story"), "Gemini response")
 
         ask_gemini.assert_called_once()
         self.assertEqual(
@@ -539,8 +539,8 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
             ),
             "Your test robot is named Copperhead.",
         )
-        with patch.object(atlas_module, "ask_ai") as ask_gemini:
-            response = Atlas().process("What's my missing pet's name?")
+        with patch.object(lewis_module, "ask_ai") as ask_gemini:
+            response = Lewis().process("What's my missing pet's name?")
         ask_gemini.assert_not_called()
         self.assertEqual(
             response,
@@ -587,11 +587,11 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
             ),
             patch("builtins.print"),
             patch(
-                "core.atlas.ask_ai",
+                "core.lewis.ask_ai",
                 side_effect=unavailable,
             ) as ask_gemini,
         ):
-            atlas_main.main()
+            lewis_main.main()
 
         self.assertEqual(ask_gemini.call_count, 4)
         project_facts = project_memory_storage.get_project_facts("ATLAS")
@@ -606,8 +606,8 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
 import sys
 from pathlib import Path
 
-from core import atlas as atlas_module
-from core.atlas import Atlas
+from core import lewis as lewis_module
+from core.lewis import Lewis
 from memory import conversations, memory, project_memory
 from memory.manager import get_memories
 
@@ -618,15 +618,15 @@ conversations.CONVERSATIONS_FILE = Path(sys.argv[3])
 def unexpected_ai_call(message):
     raise AssertionError("A deterministic memory query called Gemini")
 
-atlas_module.ask_ai = unexpected_ai_call
-atlas = Atlas()
-assert atlas.process("What is my test robot called?") == (
+lewis_module.ask_ai = unexpected_ai_call
+lewis = Lewis()
+assert lewis.process("What is my test robot called?") == (
     "Your test robot is named Copperhead."
 )
-assert atlas.process("What are my interests?") == (
+assert lewis.process("What are my interests?") == (
     "You're interested in: robotics."
 )
-assert atlas.process("What do you remember about my imaginary pet?") == (
+assert lewis.process("What do you remember about my imaginary pet?") == (
     "I don't have anything recorded about imaginary pet."
 )
 assert len(project_memory.get_project_facts("ATLAS")) == 1
@@ -666,22 +666,22 @@ dotenv.load_dotenv = lambda *args, **kwargs: None
 os.environ.pop("GEMINI_API_KEY", None)
 
 import main
-from core.atlas import Atlas
+from core.lewis import Lewis
 from memory import conversations, memory, project_memory
 
 memory.MEMORY_FILE = Path(sys.argv[1])
 project_memory.PROJECT_MEMORY_FILE = Path(sys.argv[2])
 conversations.CONVERSATIONS_FILE = Path(sys.argv[3])
 
-atlas = Atlas()
-response = atlas.process("My test robot is named Copperhead.")
-assert response == atlas.MODEL_UNAVAILABLE_RESPONSE
+lewis = Lewis()
+response = lewis.process("My test robot is named Copperhead.")
+assert response == lewis.MODEL_UNAVAILABLE_RESPONSE
 
 facts = project_memory.get_project_facts("ATLAS")
 assert len(facts) == 1
 assert facts[0]["subject"] == "test robot"
 assert facts[0]["value"] == "Copperhead"
-exchange = conversations.get_conversation(atlas.active_conversation_id)
+exchange = conversations.get_conversation(lewis.active_conversation_id)
 assert [message["role"] for message in exchange["messages"]] == [
     "user",
     "error",
@@ -729,8 +729,8 @@ assert [message["role"] for message in exchange["messages"]] == [
             "I don't have any hardware components recorded as chosen "
             "for cyberdeck.",
         )
-        with patch.object(atlas_module, "ask_ai") as ask_gemini:
-            response = Atlas().process(
+        with patch.object(lewis_module, "ask_ai") as ask_gemini:
+            response = Lewis().process(
                 "What hardware have I explicitly chosen for my cyberdeck?"
             )
         ask_gemini.assert_not_called()
@@ -742,11 +742,11 @@ assert [message["role"] for message in exchange["messages"]] == [
 
     def test_explicit_project_choice_can_be_recalled(self):
         with patch.object(
-            atlas_module,
+            lewis_module,
             "ask_ai",
             return_value="Got it.",
         ):
-            Atlas().process(
+            Lewis().process(
                 "I chose a Raspberry Pi as a hardware component "
                 "for my cyberdeck."
             )
@@ -767,11 +767,11 @@ assert [message["role"] for message in exchange["messages"]] == [
             "project",
         )
         with patch.object(
-            atlas_module,
+            lewis_module,
             "ask_ai",
             return_value="I can help plan it.",
         ) as ask_gemini:
-            Atlas().process("Can you help me with my cyberdeck?")
+            Lewis().process("Can you help me with my cyberdeck?")
 
         prompt = ask_gemini.call_args.args[0]
         self.assertIn("a cyberdeck, any suggestions", prompt)

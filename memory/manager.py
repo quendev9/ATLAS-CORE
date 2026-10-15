@@ -1121,7 +1121,7 @@ def save_fact(fact, project_name="ATLAS"):
 
 
 def process_memory(user_input, project_name="ATLAS"):
-    """Extract and save facts in the same stores used by the Atlas runtime."""
+    """Extract and save facts in the same stores used by the LEWIS runtime."""
     saved = [
         result
         for fact in extract_facts(user_input)

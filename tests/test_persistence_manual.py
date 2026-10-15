@@ -11,7 +11,7 @@ from memory import project_memory as project_storage
 from memory.manager import remember_memory
 
 def main():
-    with tempfile.TemporaryDirectory(prefix="atlas_memory_test_") as temp:
+    with tempfile.TemporaryDirectory(prefix="lewis_memory_test_") as temp:
         temp = Path(temp)
         personal_path = temp / "memory.json"
         project_path = temp / "project_memory.json"

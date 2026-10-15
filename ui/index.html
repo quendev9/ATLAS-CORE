@@ -4,22 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#080a0c">
-    <title>ATLAS HUD</title>
+    <title>LEWIS HUD</title>
+    <link rel="icon" type="image/svg+xml" href="lewis-logo.svg">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <main class="hud">
         <header class="top-bar">
-            <a class="brand" href="#home" aria-label="ATLAS home">
+            <a class="brand" href="#home" aria-label="LEWIS home">
                 <span class="brand-mark" aria-hidden="true">
-                    <svg viewBox="0 0 40 40">
-                        <path d="M20 4 37 34h-7L20 15 10 34H3L20 4Z"></path>
-                        <path d="M15 27h10"></path>
-                    </svg>
+                    <img src="lewis-logo.svg" alt="">
                 </span>
-                <span class="brand-name">ATLAS</span>
+                <span class="brand-name">LEWIS</span>
             </a>
-            <div class="brand-subtitle">ADAPTIVE TECHNOLOGY &amp; LEARNING AUTONOMOUS SYSTEM</div>
+            <div class="brand-subtitle">LEWIS — Learning, Engineering &amp; Workflow Intelligence System</div>
             <div class="top-status" aria-live="polite">
                 <span class="top-status-item" id="systemStatusItem" data-status="unknown">
                     <span class="status-dot"></span>
@@ -63,8 +61,8 @@
                     </a>
                 </nav>
                 <div class="sidebar-build">
-                    <span class="build-mark" aria-hidden="true">A</span>
-                    <span><strong>ATLAS CORE</strong><small>Local assistant</small></span>
+                    <span class="build-mark" aria-hidden="true">L</span>
+                    <span><strong>LEWIS CORE</strong><small>Local assistant</small></span>
                     <span id="coreValue" class="build-state">--</span>
                 </div>
             </aside>
@@ -74,11 +72,11 @@
                     <div class="greeting">
                         <span class="eyebrow">YOUR ASSISTANT</span>
                         <h1>Good day,<br><span>Quen.</span></h1>
-                        <p>I'm ATLAS. What would you like<br class="desktop-break"> to work on today?</p>
+                        <p>I'm LEWIS. What would you like<br class="desktop-break"> to work on today?</p>
                     </div>
 
                     <div class="orb-wrap">
-                        <div class="orb" id="coreOrb" data-state="idle" role="img" aria-label="ATLAS assistant idle">
+                        <div class="orb" id="coreOrb" data-state="idle" role="img" aria-label="LEWIS assistant idle">
                             <svg class="orb-geometry" viewBox="0 0 420 420" aria-hidden="true">
                                 <defs>
                                     <radialGradient id="coreLight">
@@ -111,7 +109,7 @@
                                 <circle class="core-point" cx="210" cy="210" r="5"></circle>
                             </svg>
                             <div class="orb-center" aria-hidden="true">
-                                <span class="core-symbol">A</span>
+                                <span class="core-symbol">L</span>
                             </div>
                         </div>
                         <span class="orb-caption" id="orbStatusLabel">STANDBY</span>
@@ -138,17 +136,17 @@
 
                 <section id="conversation" class="conversation" aria-label="Conversation">
                     <div class="conversation-header">
-                        <span>ATLAS INTERFACE <span class="conversation-state" aria-live="polite" data-state="ready">READY</span></span>
+                        <span>LEWIS INTERFACE <span class="conversation-state" aria-live="polite" data-state="ready">READY</span></span>
                         <button id="expandChatButton" class="expand-chat-button" type="button" aria-expanded="false">EXPAND</button>
                     </div>
                     <div id="messages" class="messages" aria-live="polite">
-                        <div class="message atlas-message">
-                            <div class="message-label">ATLAS</div>
-                            <div class="message-text">ATLAS Core initialized. Awaiting input.</div>
+                        <div class="message lewis-message">
+                            <div class="message-label">LEWIS</div>
+                            <div class="message-text">LEWIS initialized. Awaiting input.</div>
                         </div>
                     </div>
                     <div class="input-area">
-                        <input id="commandInput" type="text" placeholder="Ask ATLAS anything..." autocomplete="off" aria-label="Message ATLAS">
+                        <input id="commandInput" type="text" placeholder="Ask LEWIS anything..." autocomplete="off" aria-label="Message LEWIS">
                         <button id="sendButton" type="button" aria-label="Send message"><span aria-hidden="true">↑</span><span class="send-label">SEND</span></button>
                     </div>
                     <div class="composer-tools">

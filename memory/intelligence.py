@@ -1,5 +1,5 @@
 """
-ATLAS Memory Intelligence
+LEWIS Memory Intelligence
 
 Evaluates user messages and extracts potentially useful
 long-term information.

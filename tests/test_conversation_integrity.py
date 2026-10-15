@@ -9,9 +9,9 @@ from unittest.mock import patch
 from google.genai.errors import ServerError
 
 from ai import model
-import main as atlas_main
+import main as lewis_main
 import memory.conversations as conversations
-from core.atlas import Atlas
+from core.lewis import Lewis
 from core.context_builder import build_context
 from memory import memory as personal_memory
 from memory import project_memory
@@ -60,10 +60,10 @@ class ConversationIntegrityTests(unittest.TestCase):
         self.addCleanup(self.temp_dir.cleanup)
 
     def test_new_conversation_command_stays_in_original_conversation(self):
-        atlas = Atlas()
-        original_id = atlas.active_conversation_id
+        lewis = Lewis()
+        original_id = lewis.active_conversation_id
 
-        response = atlas.process(
+        response = lewis.process(
             "start a new conversation Robotics Lab"
         )
 
@@ -87,11 +87,11 @@ class ConversationIntegrityTests(unittest.TestCase):
 
         self.assertNotEqual(active_id, original_id)
         self.assertEqual(active["title"], "Robotics Lab")
-        self.assertEqual(atlas.active_conversation_id, active_id)
+        self.assertEqual(lewis.active_conversation_id, active_id)
 
     def test_switch_command_persists_selection_and_saves_exchange(self):
-        atlas = Atlas()
-        original_id = atlas.active_conversation_id
+        lewis = Lewis()
+        original_id = lewis.active_conversation_id
 
         target = conversations.create_conversation(
             title="Robotics Lab",
@@ -100,9 +100,9 @@ class ConversationIntegrityTests(unittest.TestCase):
 
         # Restore the original conversation before issuing the command.
         conversations.set_active_conversation(original_id)
-        atlas.active_conversation_id = original_id
+        lewis.active_conversation_id = original_id
 
-        response = atlas.process("switch to Robotics Lab")
+        response = lewis.process("switch to Robotics Lab")
 
         original = conversations.get_conversation(original_id)
 
@@ -111,7 +111,7 @@ class ConversationIntegrityTests(unittest.TestCase):
             target["id"],
         )
         self.assertEqual(
-            atlas.active_conversation_id,
+            lewis.active_conversation_id,
             target["id"],
         )
         self.assertEqual(
@@ -124,14 +124,14 @@ class ConversationIntegrityTests(unittest.TestCase):
         )
 
     def test_ai_failure_is_recorded_and_returns_a_controlled_fallback(self):
-        atlas = Atlas()
-        conversation_id = atlas.active_conversation_id
+        lewis = Lewis()
+        conversation_id = lewis.active_conversation_id
 
         with patch(
-            "core.atlas.ask_ai",
+            "core.lewis.ask_ai",
             side_effect=RuntimeError("simulated failure"),
         ):
-            response = atlas.process("Explain my robotics project")
+            response = lewis.process("Explain my robotics project")
 
         conversation = conversations.get_conversation(conversation_id)
         roles = [
@@ -146,16 +146,16 @@ class ConversationIntegrityTests(unittest.TestCase):
         )
         self.assertEqual(
             response,
-            Atlas.MODEL_UNAVAILABLE_RESPONSE,
+            Lewis.MODEL_UNAVAILABLE_RESPONSE,
         )
         self.assertEqual(
             conversation["messages"][-1]["content"],
-            Atlas.MODEL_UNAVAILABLE_RESPONSE,
+            Lewis.MODEL_UNAVAILABLE_RESPONSE,
         )
 
     def test_gemini_429_explains_quota_and_records_provider_detail(self):
-        atlas = Atlas()
-        conversation_id = atlas.active_conversation_id
+        lewis = Lewis()
+        conversation_id = lewis.active_conversation_id
         rate_limit_error = ServerError(
             429,
             {
@@ -167,25 +167,25 @@ class ConversationIntegrityTests(unittest.TestCase):
         )
 
         with patch(
-            "core.atlas.ask_ai",
+            "core.lewis.ask_ai",
             side_effect=rate_limit_error,
         ):
-            response = atlas.process("Explain my robotics project")
+            response = lewis.process("Explain my robotics project")
 
         conversation = conversations.get_conversation(conversation_id)
         error_message = conversation["messages"][-2]["content"]
 
-        self.assertEqual(response, Atlas.MODEL_RATE_LIMIT_RESPONSE)
+        self.assertEqual(response, Lewis.MODEL_RATE_LIMIT_RESPONSE)
         self.assertIn("quota", response.lower())
         self.assertIn("429", error_message)
         self.assertIn("Quota exceeded", error_message)
         self.assertEqual(
             conversation["messages"][-1]["content"],
-            Atlas.MODEL_RATE_LIMIT_RESPONSE,
+            Lewis.MODEL_RATE_LIMIT_RESPONSE,
         )
 
     def test_groq_provider_uses_selected_backend(self):
-        atlas = Atlas()
+        lewis = Lewis()
 
         with (
             patch.object(model, "_selected_ai_model", None),
@@ -202,23 +202,23 @@ class ConversationIntegrityTests(unittest.TestCase):
             ) as ask_groq,
         ):
             model.set_ai_selection("groq", "openai/gpt-oss-20b")
-            response = atlas.process("Tell me a story")
+            response = lewis.process("Tell me a story")
 
         self.assertEqual(response, "Groq reply")
         ask_groq.assert_called_once()
 
     def test_groq_http_statuses_have_provider_specific_fallbacks(self):
         error_cases = (
-            (401, Atlas.MODEL_AUTHENTICATION_RESPONSE),
-            (403, Atlas.MODEL_PERMISSION_RESPONSE),
-            (404, Atlas.MODEL_NOT_FOUND_RESPONSE),
-            (429, Atlas.MODEL_RATE_LIMIT_RESPONSE),
-            (503, Atlas.MODEL_SERVER_ERROR_RESPONSE),
+            (401, Lewis.MODEL_AUTHENTICATION_RESPONSE),
+            (403, Lewis.MODEL_PERMISSION_RESPONSE),
+            (404, Lewis.MODEL_NOT_FOUND_RESPONSE),
+            (429, Lewis.MODEL_RATE_LIMIT_RESPONSE),
+            (503, Lewis.MODEL_SERVER_ERROR_RESPONSE),
         )
 
         for status_code, expected_template in error_cases:
             with self.subTest(status_code=status_code):
-                atlas = Atlas()
+                lewis = Lewis()
                 with (
                     patch.object(model, "_selected_ai_model", None),
                     patch.dict(
@@ -240,7 +240,7 @@ class ConversationIntegrityTests(unittest.TestCase):
                         "groq",
                         "openai/gpt-oss-20b",
                     )
-                    response = atlas.process(
+                    response = lewis.process(
                         f"Test provider status {status_code}"
                     )
 
@@ -249,7 +249,7 @@ class ConversationIntegrityTests(unittest.TestCase):
                     expected_template.replace("Gemini", "Groq"),
                 )
                 error_message = conversations.get_conversation(
-                    atlas.active_conversation_id
+                    lewis.active_conversation_id
                 )["messages"][-2]["content"]
                 self.assertIn("provider diagnostic detail", error_message)
 
@@ -290,11 +290,11 @@ class ConversationIntegrityTests(unittest.TestCase):
         )
 
     def test_gemini_503_does_not_stop_interactive_loop(self):
-        atlas = Atlas()
+        lewis = Lewis()
         unavailable = ServerError(503, {"error": "temporarily unavailable"})
 
         with (
-            patch("main.Atlas", return_value=atlas),
+            patch("main.Lewis", return_value=lewis),
             patch(
                 "builtins.input",
                 side_effect=[
@@ -306,25 +306,25 @@ class ConversationIntegrityTests(unittest.TestCase):
             ),
             patch("builtins.print") as printed,
             patch(
-                "core.atlas.ask_ai",
+                "core.lewis.ask_ai",
                 side_effect=[unavailable, "Gemini is back."],
             ) as ask_gemini,
         ):
-            atlas_main.main()
+            lewis_main.main()
 
         self.assertEqual(
             ask_gemini.call_args.kwargs["conversation_id"],
-            atlas.active_conversation_id,
+            lewis.active_conversation_id,
         )
         self.assertEqual(ask_gemini.call_count, 2)
-        self.assertEqual(atlas.state, "ready")
+        self.assertEqual(lewis.state, "ready")
         printed.assert_any_call(
-            f"ATLAS: {Atlas.MODEL_SERVER_ERROR_RESPONSE}"
+            f"LEWIS: {Lewis.MODEL_SERVER_ERROR_RESPONSE}"
         )
-        printed.assert_any_call("ATLAS: Gemini is back.")
+        printed.assert_any_call("LEWIS: Gemini is back.")
 
         conversation = conversations.get_conversation(
-            atlas.active_conversation_id
+            lewis.active_conversation_id
         )
         self.assertEqual(
             [message["role"] for message in conversation["messages"]],
@@ -332,13 +332,13 @@ class ConversationIntegrityTests(unittest.TestCase):
         )
 
     def test_closed_client_failure_keeps_memory_and_console_loop_usable(self):
-        atlas = Atlas()
+        lewis = Lewis()
         closed_client_error = RuntimeError(
             "Cannot send a request, as the client has been closed."
         )
 
         with (
-            patch("main.Atlas", return_value=atlas),
+            patch("main.Lewis", return_value=lewis),
             patch(
                 "builtins.input",
                 side_effect=[
@@ -350,34 +350,34 @@ class ConversationIntegrityTests(unittest.TestCase):
             ),
             patch("builtins.print") as printed,
             patch(
-                "core.atlas.ask_ai",
+                "core.lewis.ask_ai",
                 side_effect=[closed_client_error, "Gemini recovered."],
             ) as ask_gemini,
             patch("main.close_gemini") as close_gemini,
         ):
-            atlas_main.main()
+            lewis_main.main()
 
         self.assertEqual(ask_gemini.call_count, 2)
         close_gemini.assert_called_once_with()
         printed.assert_any_call(
-            "ATLAS: I'm having trouble reaching Gemini right now. "
+            "LEWIS: I'm having trouble reaching Gemini right now. "
             "Please try again in a moment."
         )
-        printed.assert_any_call("ATLAS: Gemini recovered.")
+        printed.assert_any_call("LEWIS: Gemini recovered.")
 
         facts = project_memory.get_project_facts("ATLAS")
         self.assertEqual(len(facts), 1)
         self.assertEqual(facts[0]["subject"], "test robot")
         self.assertEqual(facts[0]["value"], "copperhead")
-        self.assertEqual(atlas.state, "ready")
+        self.assertEqual(lewis.state, "ready")
 
     def test_assistant_suggestions_remain_conversation_only(self):
-        atlas = Atlas()
+        lewis = Lewis()
         with patch(
-            "core.atlas.ask_ai",
+            "core.lewis.ask_ai",
             return_value="You could use a Raspberry Pi for the cyberdeck.",
         ):
-            atlas.process("Can you suggest hardware for my cyberdeck?")
+            lewis.process("Can you suggest hardware for my cyberdeck?")
 
         self.assertEqual(get_memories(), [])
         self.assertEqual(
@@ -385,7 +385,7 @@ class ConversationIntegrityTests(unittest.TestCase):
             [],
         )
         conversation = conversations.get_conversation(
-            atlas.active_conversation_id
+            lewis.active_conversation_id
         )
         self.assertIn(
             "You could use a Raspberry Pi",
@@ -443,16 +443,16 @@ class ConversationIntegrityTests(unittest.TestCase):
         self.assertNotIn("Private first-conversation detail.", context)
 
     def test_user_correction_updates_project_decision_history(self):
-        atlas = Atlas()
+        lewis = Lewis()
         with patch(
-            "core.atlas.ask_ai",
+            "core.lewis.ask_ai",
             return_value="Understood.",
         ):
-            atlas.process(
+            lewis.process(
                 "I chose a Raspberry Pi as a hardware component "
                 "for my cyberdeck."
             )
-            atlas.process(
+            lewis.process(
                 "Actually, I chose an Arduino as a hardware component "
                 "for my cyberdeck."
             )

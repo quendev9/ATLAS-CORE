@@ -192,7 +192,7 @@ def build_context(
     max_chars=DEFAULT_CONTEXT_CHAR_LIMIT,
 ):
     """
-    Build relevant, size-limited context for an ATLAS response.
+    Build relevant, size-limited context for a LEWIS response.
 
     Includes a validated conversation summary, recent messages,
     relevant older messages, project facts, and personal memories.
@@ -239,7 +239,7 @@ def build_context(
         if isinstance(message, dict)
     ]
 
-    # Atlas.process() normally records the current user message before
+    # Lewis.process() normally records the current user message before
     # building context, so do not append it a second time.
     recent_source = (
         valid_messages[-max_recent_messages:]

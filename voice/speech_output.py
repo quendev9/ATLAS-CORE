@@ -130,8 +130,8 @@ def speak(text, cancel_event=None):
         try:
             _speak_fish(clean_text, cancel_event)
         except Exception as error:
-            print(f"[ATLAS voice] Fish Audio unavailable: {error}")
-            print("[ATLAS voice] Using local fallback voice.")
+            print(f"[LEWIS voice] Fish Audio unavailable: {error}")
+            print("[LEWIS voice] Using local fallback voice.")
 
             try:
                 if not _stop_requested.is_set() and not (
@@ -139,7 +139,7 @@ def speak(text, cancel_event=None):
                 ):
                     _speak_local(clean_text)
             except Exception as fallback_error:
-                print(f"[ATLAS voice] Local speech failed: {fallback_error}")
+                print(f"[LEWIS voice] Local speech failed: {fallback_error}")
                 return False
 
         return not _stop_requested.is_set() and not (

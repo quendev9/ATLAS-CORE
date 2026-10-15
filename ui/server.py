@@ -23,17 +23,17 @@ sys.path.insert(0, str(PROJECT_DIR))
 
 
 # ---------------------------------------------------------
-# ATLAS IMPORTS
+# LEWIS IMPORTS
 # ---------------------------------------------------------
 
 from core.event_logger import get_events, log_event
 
 try:
-    from core.atlas import Atlas
-    ATLAS_AVAILABLE = True
+    from core.lewis import Lewis
+    LEWIS_AVAILABLE = True
 except Exception as error:
-    ATLAS_AVAILABLE = False
-    print("ATLAS CORE IMPORT ERROR:", type(error).__name__)
+    LEWIS_AVAILABLE = False
+    print("LEWIS CORE IMPORT ERROR:", type(error).__name__)
 
 try:
     from memory.memory import get_all_memories
@@ -52,29 +52,29 @@ try:
     VOICE_INPUT_AVAILABLE = True
 except Exception as error:
     VOICE_INPUT_AVAILABLE = False
-    print("ATLAS VOICE INPUT IMPORT ERROR:", type(error).__name__, str(error))
+    print("LEWIS VOICE INPUT IMPORT ERROR:", type(error).__name__, str(error))
 
 try:
     from voice.speech_output import speak, stop_speaking
     VOICE_OUTPUT_AVAILABLE = True
 except Exception as error:
     VOICE_OUTPUT_AVAILABLE = False
-    print("ATLAS VOICE OUTPUT IMPORT ERROR:", type(error).__name__, str(error))
+    print("LEWIS VOICE OUTPUT IMPORT ERROR:", type(error).__name__, str(error))
 
 
 # ---------------------------------------------------------
-# ATLAS INSTANCE
+# LEWIS INSTANCE
 # ---------------------------------------------------------
 
-atlas = None
+lewis = None
 
-if ATLAS_AVAILABLE:
+if LEWIS_AVAILABLE:
     try:
-        atlas = Atlas()
+        lewis = Lewis()
     except Exception as error:
-        print("ATLAS INITIALIZATION ERROR:", type(error).__name__)
-        atlas = None
-        ATLAS_AVAILABLE = False
+        print("LEWIS INITIALIZATION ERROR:", type(error).__name__)
+        lewis = None
+        LEWIS_AVAILABLE = False
 
 
 # ---------------------------------------------------------
@@ -84,7 +84,7 @@ if ATLAS_AVAILABLE:
 START_TIME = time.time()
 
 # Only one request may process a message through the shared
-# Atlas instance at a time.
+# Lewis instance at a time.
 core_lock = threading.Lock()
 
 # Only one microphone session may run at a time.
@@ -149,7 +149,7 @@ def get_memory_count():
     try:
         return len(get_all_memories())
     except Exception as error:
-        print("ATLAS MEMORY STATUS ERROR:", type(error).__name__)
+        print("LEWIS MEMORY STATUS ERROR:", type(error).__name__)
         return None
 
 
@@ -170,7 +170,7 @@ def get_system_data():
 
 
 # ---------------------------------------------------------
-# ATLAS STATUS
+# LEWIS STATUS
 # ---------------------------------------------------------
 
 def get_status():
@@ -180,7 +180,7 @@ def get_status():
 
     return {
         "core": (
-            "ONLINE" if ATLAS_AVAILABLE and atlas else "OFFLINE"
+            "ONLINE" if LEWIS_AVAILABLE and lewis else "OFFLINE"
         ),
         "ai": (
             "CONFIGURED"
@@ -264,18 +264,18 @@ def read_json_body(handler):
 # CORE PROCESSING
 # ---------------------------------------------------------
 
-def process_with_atlas(user_input):
-    if not ATLAS_AVAILABLE or atlas is None:
-        raise RuntimeError("ATLAS Core is unavailable.")
+def process_with_lewis(user_input):
+    if not LEWIS_AVAILABLE or lewis is None:
+        raise RuntimeError("LEWIS Core is unavailable.")
 
     with core_lock:
         update_state(processing=True)
 
         try:
-            response = atlas.process(user_input)
+            response = lewis.process(user_input)
 
             if response is None:
-                response = "ATLAS Core returned no response."
+                response = "LEWIS Core returned no response."
 
             return str(response)
 
@@ -358,7 +358,7 @@ def voice_worker(stop_event):
             )
             log_event("VOICE INPUT RECOGNIZED")
 
-            response = process_with_atlas(transcript)
+            response = process_with_lewis(transcript)
             update_state(
                 last_response=response,
                 voice_response_id=event_id,
@@ -374,7 +374,7 @@ def voice_worker(stop_event):
                 _speak_session_text(response, stop_event)
 
     except Exception as error:
-        print("ATLAS VOICE ERROR:", type(error).__name__)
+        print("LEWIS VOICE ERROR:", type(error).__name__)
         log_event("VOICE OPERATION FAILED")
 
         update_state(
@@ -400,8 +400,8 @@ def start_voice_listening():
     if not VOICE_INPUT_AVAILABLE:
         return False, "Voice input modules are unavailable."
 
-    if not ATLAS_AVAILABLE or atlas is None:
-        return False, "ATLAS Core is unavailable."
+    if not LEWIS_AVAILABLE or lewis is None:
+        return False, "LEWIS Core is unavailable."
 
     if not voice_lock.acquire(blocking=False):
         return False, "A voice operation is already running."
@@ -427,7 +427,7 @@ def start_voice_listening():
         worker = threading.Thread(
             target=voice_worker,
             args=(voice_stop_event,),
-            name="ATLAS-Voice-Worker",
+            name="LEWIS-Voice-Worker",
             daemon=True,
         )
         worker.start()
@@ -464,7 +464,7 @@ def stop_voice_session():
 # HTTP REQUEST HANDLER
 # ---------------------------------------------------------
 
-class AtlasHandler(BaseHTTPRequestHandler):
+class LewisHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         return
@@ -497,6 +497,10 @@ class AtlasHandler(BaseHTTPRequestHandler):
                 UI_DIR / "app.js",
                 "application/javascript",
             )
+            return
+
+        if path == "/lewis-logo.svg":
+            self.serve_file(UI_DIR / "lewis-logo.svg", "image/svg+xml")
             return
 
         send_json(self, {"error": "Not found"}, 404)
@@ -595,10 +599,10 @@ class AtlasHandler(BaseHTTPRequestHandler):
             send_json(self, {"error": "Message is too long."}, 400)
             return
 
-        if not ATLAS_AVAILABLE or atlas is None:
+        if not LEWIS_AVAILABLE or lewis is None:
             send_json(
                 self,
-                {"error": "ATLAS Core is unavailable."},
+                {"error": "LEWIS Core is unavailable."},
                 503,
             )
             return
@@ -607,20 +611,20 @@ class AtlasHandler(BaseHTTPRequestHandler):
         log_event("REQUEST PROCESSING")
 
         try:
-            response = process_with_atlas(user_input)
+            response = process_with_lewis(user_input)
 
         except Exception as error:
-            print("ATLAS PROCESS ERROR:", type(error).__name__)
-            log_event("ATLAS PROCESS FAILED")
+            print("LEWIS PROCESS ERROR:", type(error).__name__)
+            log_event("LEWIS PROCESS FAILED")
 
             send_json(
                 self,
-                {"error": "ATLAS Core encountered an internal error."},
+                {"error": "LEWIS Core encountered an internal error."},
                 500,
             )
             return
 
-        log_event("ATLAS PROCESS COMPLETED")
+        log_event("LEWIS PROCESS COMPLETED")
         send_json(self, {"response": response})
         log_event("RESPONSE DELIVERED")
 
@@ -676,7 +680,7 @@ class AtlasHandler(BaseHTTPRequestHandler):
         )
 
     # -----------------------------------------------------
-    # SPEAK TEXT THROUGH ATLAS VOICE
+    # SPEAK TEXT THROUGH LEWIS VOICE
     # -----------------------------------------------------
 
     def handle_voice_speak(self):
@@ -760,7 +764,7 @@ class AtlasHandler(BaseHTTPRequestHandler):
                 speak(text)
 
             except Exception as error:
-                print("ATLAS SPEECH ERROR:", type(error).__name__)
+                print("LEWIS SPEECH ERROR:", type(error).__name__)
                 update_state(
                     last_error=(
                         "Speech output failed: "
@@ -791,7 +795,7 @@ class AtlasHandler(BaseHTTPRequestHandler):
         try:
             threading.Thread(
                 target=reserved_speech_worker,
-                name="ATLAS-Speech-Worker",
+                name="LEWIS-Speech-Worker",
                 daemon=True,
             ).start()
         except Exception:
@@ -822,7 +826,7 @@ class AtlasHandler(BaseHTTPRequestHandler):
             stop_speaking()
             send_json(self, {"message": "Stop requested."})
         except Exception as error:
-            print("ATLAS STOP SPEECH ERROR:", type(error).__name__)
+            print("LEWIS STOP SPEECH ERROR:", type(error).__name__)
             send_json(self, {"error": "Could not stop speech output."}, 500)
 
     # -----------------------------------------------------
@@ -881,12 +885,12 @@ class AtlasHandler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------
 
 def main():
-    log_event("ATLAS HUD SERVER INITIALIZED")
+    log_event("LEWIS HUD SERVER INITIALIZED")
 
-    if ATLAS_AVAILABLE and atlas:
-        log_event("ATLAS CORE CONNECTED")
+    if LEWIS_AVAILABLE and lewis:
+        log_event("LEWIS CORE CONNECTED")
     else:
-        log_event("ATLAS CORE UNAVAILABLE")
+        log_event("LEWIS CORE UNAVAILABLE")
 
     log_event(
         "MEMORY MODULE CONNECTED"
@@ -915,15 +919,15 @@ def main():
 
     server = ThreadingHTTPServer(
         ("127.0.0.1", 8000),
-        AtlasHandler,
+        LewisHandler,
     )
 
     print()
     print("========================================")
-    print("           ATLAS HUD SERVER")
+    print("           LEWIS HUD SERVER")
     print("========================================")
     print()
-    print("ATLAS HUD ONLINE")
+    print("LEWIS HUD ONLINE")
     print("Open: http://127.0.0.1:8000")
     print("Press CTRL+C to shut down.")
     print()
@@ -932,7 +936,7 @@ def main():
         server.serve_forever()
     except KeyboardInterrupt:
         print()
-        print("ATLAS HUD SERVER OFFLINE")
+        print("LEWIS HUD SERVER OFFLINE")
     finally:
         server.server_close()
 

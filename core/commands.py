@@ -14,19 +14,19 @@ def _normalize_title(value):
     return value or "New conversation"
 
 
-def _activate_conversation(atlas, conversation):
-    """Update ATLAS and persist the selected conversation."""
+def _activate_conversation(lewis, conversation):
+    """Update the active runtime and persist the selected conversation."""
 
     conversation_id = conversation["id"]
 
     set_active_conversation(conversation_id)
-    atlas.active_conversation_id = conversation_id
-    atlas.active_project = (
-        conversation.get("project") or atlas.active_project
+    lewis.active_conversation_id = conversation_id
+    lewis.active_project = (
+        conversation.get("project") or lewis.active_project
     )
 
 
-def handle_deterministic_command(atlas, user_input):
+def handle_deterministic_command(lewis, user_input):
     text = str(user_input or "").strip()
 
     if not text:
@@ -35,12 +35,12 @@ def handle_deterministic_command(atlas, user_input):
     lowered = text.lower()
 
     if lowered in {
-        "atlas, stop speaking",
-        "atlas stop speaking",
+        "lewis, stop speaking",
+        "lewis stop speaking",
         "stop speaking",
         "halt",
     }:
-        atlas.state = "idle"
+        lewis.state = "idle"
         return "Understood. I will stop speaking."
 
     if lowered.startswith("start a new conversation"):
@@ -50,9 +50,9 @@ def handle_deterministic_command(atlas, user_input):
 
         conversation = create_conversation(
             title=title,
-            project=atlas.active_project,
+            project=lewis.active_project,
         )
-        _activate_conversation(atlas, conversation)
+        _activate_conversation(lewis, conversation)
 
         return f"Started a new conversation: {conversation['title']}"
 
@@ -70,15 +70,15 @@ def handle_deterministic_command(atlas, user_input):
                 ]).lower()
 
                 if topic.lower() in haystack:
-                    _activate_conversation(atlas, conversation)
+                    _activate_conversation(lewis, conversation)
                     return f"Opened conversation: {conversation['title']}"
 
             return (
                 f"I couldn't find a matching conversation about '{topic}'."
             )
 
-        if atlas.active_conversation_id:
-            current = get_conversation(atlas.active_conversation_id)
+        if lewis.active_conversation_id:
+            current = get_conversation(lewis.active_conversation_id)
 
             if current:
                 return f"Current conversation: {current['title']}"
@@ -95,10 +95,10 @@ def handle_deterministic_command(atlas, user_input):
             ]).lower()
 
             if target.lower() in haystack:
-                _activate_conversation(atlas, conversation)
+                _activate_conversation(lewis, conversation)
                 return f"Switched to {conversation['title']}"
 
-        atlas.active_project = target.upper()
+        lewis.active_project = target.upper()
         return f"Project set to {target.upper()}."
 
     if lowered.startswith("rename conversation "):
@@ -106,8 +106,8 @@ def handle_deterministic_command(atlas, user_input):
             text[len("rename conversation "):].strip(" .?")
         )
 
-        if atlas.active_conversation_id:
-            rename_conversation(atlas.active_conversation_id, title)
+        if lewis.active_conversation_id:
+            rename_conversation(lewis.active_conversation_id, title)
             return f"Conversation renamed to {title}."
 
         return "There is no active conversation to rename."
@@ -115,10 +115,10 @@ def handle_deterministic_command(atlas, user_input):
     if lowered.startswith("what did we decide about "):
         topic = text[len("what did we decide about "):].strip("? .")
 
-        if atlas.active_conversation_id:
+        if lewis.active_conversation_id:
             matches = search_messages(
                 topic,
-                conversation_id=atlas.active_conversation_id,
+                conversation_id=lewis.active_conversation_id,
                 limit=5,
             )
 

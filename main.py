@@ -1,14 +1,14 @@
 
 from ai.model import close_gemini
-from core.atlas import Atlas
+from core.lewis import Lewis
 from voice.speech_input import listen_once
 from voice.speech_output import speak
 
 
 def main():
-    atlas = Atlas()
+    lewis = Lewis()
 
-    print("ATLAS CORE ONLINE")
+    print("LEWIS CORE ONLINE")
     print("Choose input mode:")
     print("[1] Text")
     print("[2] Voice (push-to-talk)")
@@ -39,19 +39,19 @@ def main():
                     continue
 
                 if user_input.casefold() == "exit":
-                    print("ATLAS CORE OFFLINE")
+                    print("LEWIS CORE OFFLINE")
                     break
 
                 print(f"YOU: {user_input}")
 
-                response = atlas.process(user_input)
-                print(f"ATLAS: {response}")
+                response = lewis.process(user_input)
+                print(f"LEWIS: {response}")
 
                 if mode == "2":
                     speak(response)
 
             except KeyboardInterrupt:
-                print("\nATLAS CORE OFFLINE")
+                print("\nLEWIS CORE OFFLINE")
                 break
             except Exception as error:
                 print(f"Input error: {error}")

@@ -13,12 +13,12 @@ class ContextBuilderTests(unittest.TestCase):
                 {
                     "id": "msg-1",
                     "role": "user",
-                    "content": "I am building ATLAS, my autonomous assistant.",
+                    "content": "I am building LEWIS for my engineering projects.",
                 },
                 {
                     "id": "msg-2",
                     "role": "assistant",
-                    "content": "ATLAS can use memory and tools.",
+                    "content": "LEWIS can use memory and tools.",
                 },
                 {
                     "id": "msg-3",

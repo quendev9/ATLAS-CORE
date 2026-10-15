@@ -102,13 +102,10 @@ summary:focus-visible {
     justify-content: center;
 }
 
-.brand-mark svg {
+.brand-mark img {
     width: 32px;
-    fill: none;
-    stroke: var(--silver);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 2;
+    height: 32px;
+    display: block;
 }
 
 .brand-name {
@@ -1496,7 +1493,7 @@ summary:focus-visible {
     font-size: 7px;
 }
 
-.atlas-offline #systemStatusItem[data-status="offline"] strong {
+.lewis-offline #systemStatusItem[data-status="offline"] strong {
     color: #d29393;
 }
 

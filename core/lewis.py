@@ -21,12 +21,12 @@ from memory.conversations import (
 )
 from core.commands import handle_deterministic_command
 from core.context_builder import build_context
-from core.identity import ATLAS_IDENTITY
+from core.identity import LEWIS_IDENTITY
 from core.router import classify_input
 from core.event_logger import log_event
 
 
-class Atlas:
+class Lewis:
 
     MODEL_UNAVAILABLE_RESPONSE = (
         "I'm having trouble reaching Gemini right now. "
@@ -52,7 +52,7 @@ class Atlas:
     )
 
     def __init__(self):
-        print("ATLAS CORE INITIALIZING")
+        print("LEWIS CORE INITIALIZING")
         self.state = "idle"
         self.active_project = "ATLAS"
         self.active_conversation_id = get_active_conversation_id()
@@ -283,12 +283,12 @@ class Atlas:
             )
 
             prompt = (
-                f"{ATLAS_IDENTITY}\n\n"
+                f"{LEWIS_IDENTITY}\n\n"
                 f"{context}"
             )
         else:
             prompt = (
-                f"{ATLAS_IDENTITY}\n\n"
+                f"{LEWIS_IDENTITY}\n\n"
                 f"User message:\n{user_input}\n"
             )
 

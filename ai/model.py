@@ -8,22 +8,28 @@ from urllib.request import Request, urlopen
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 from google.genai.errors import APIError
+
+from core.identity import LEWIS_IDENTITY
 
 
 load_dotenv()
 
 TRANSIENT_API_STATUS_CODES = {408, 429}
+
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 _client = None
 _chat = None
 _conversation_chats = {}
+
 _client_lock = threading.Lock()
 _request_lock = threading.Lock()
 _groq_key_lock = threading.Lock()
 _selection_lock = threading.Lock()
+
 _groq_next_key_index = 0
 _selected_ai_model = None
 
@@ -41,45 +47,65 @@ def _configured_openrouter_model():
 
 
 def get_available_ai_models():
-    """Return the provider/model choices available to the assistant."""
-    return [
-        {
+    """Return only models whose providers have credentials configured."""
+    models = []
+    if os.getenv("GEMINI_API_KEY", "").strip():
+        models.append({
             "provider": "gemini",
             "name": "Gemini",
             "model": _configured_gemini_model(),
-        },
-        {
+        })
+
+    if _get_groq_api_keys():
+        groq_models = list(dict.fromkeys([
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b",
+            _configured_groq_model(),
+        ]))
+        models.extend({
             "provider": "groq",
             "name": "Groq",
-            "model": _configured_groq_model(),
-        },
-        {
+            "model": model_name,
+        } for model_name in groq_models)
+
+    if os.getenv("OPENROUTER_API_KEY", "").strip():
+        models.append({
             "provider": "openrouter",
             "name": "OpenRouter",
             "model": _configured_openrouter_model(),
-        },
-    ]
+        })
+
+    return models
 
 
 def _environment_ai_selection():
     provider = (
-        os.getenv("AI_PROVIDER", "gemini").strip().casefold() or "gemini"
+        os.getenv("AI_PROVIDER", "gemini").strip().casefold()
+        or "gemini"
     )
-    models = get_available_ai_models()
-    selected = next(
-        (item for item in models if item["provider"] == provider),
-        models[0],
-    )
-    return selected["provider"], selected["model"]
+
+    configured_models = {
+        "gemini": _configured_gemini_model(),
+        "groq": _configured_groq_model(),
+        "openrouter": _configured_openrouter_model(),
+    }
+    if provider not in configured_models:
+        provider = "gemini"
+
+    return provider, configured_models[provider]
 
 
 def get_ai_selection():
-    """Return the runtime selection, or the environment-configured default."""
+    """Return the runtime selection or the environment default."""
     with _selection_lock:
         selection = _selected_ai_model
 
     provider, model_name = selection or _environment_ai_selection()
-    return {"provider": provider, "model": model_name}
+
+    return {
+        "provider": provider,
+        "model": model_name,
+    }
 
 
 def set_ai_selection(provider, model_name):
@@ -88,6 +114,7 @@ def set_ai_selection(provider, model_name):
         raise ValueError("Choose a supported AI provider and model.")
 
     available = get_available_ai_models()
+
     if not any(
         item["provider"] == provider and item["model"] == model_name
         for item in available
@@ -95,6 +122,7 @@ def set_ai_selection(provider, model_name):
         raise ValueError("Choose a supported AI provider and model.")
 
     global _selected_ai_model
+
     with _selection_lock:
         _selected_ai_model = (provider, model_name)
 
@@ -102,14 +130,33 @@ def set_ai_selection(provider, model_name):
 
 
 def get_ai_provider():
-    """Return the provider for the current runtime selection."""
+    """Return the selected provider identifier."""
     return get_ai_selection()["provider"]
 
 
+def _get_groq_api_keys():
+    configured_values = [
+        os.getenv("GROQ_API_KEYS", ""),
+        os.getenv("GROQ_API_KEY", ""),
+    ]
+
+    keys = []
+
+    for value in configured_values:
+        keys.extend(
+            key.strip()
+            for key in re.split(r"[,;\s]+", value)
+            if key.strip()
+        )
+
+    return list(dict.fromkeys(keys))
+
+
 def get_ai_provider_info():
-    """Return the selected provider's display name, model, and key status."""
+    """Return provider display name, model, and API-key status."""
     selection = get_ai_selection()
     provider = selection["provider"]
+
     display_names = {
         "gemini": "Gemini",
         "groq": "Groq",
@@ -133,25 +180,11 @@ def get_ai_provider_info():
     }
 
 
-def _get_groq_api_keys():
-    configured_keys = [
-        os.getenv("GROQ_API_KEYS", ""),
-        os.getenv("GROQ_API_KEY", ""),
-    ]
-    keys = []
-
-    for configured_value in configured_keys:
-        keys.extend(
-            key.strip()
-            for key in re.split(r"[, \r\n]+", configured_value)
-            if key.strip()
-        )
-
-    return list(dict.fromkeys(keys))
-
-
 def _next_groq_key_index(key_count):
     global _groq_next_key_index
+
+    if key_count <= 0:
+        raise ValueError("At least one Groq API key is required.")
 
     with _groq_key_lock:
         index = _groq_next_key_index % key_count
@@ -159,17 +192,14 @@ def _next_groq_key_index(key_count):
         return index
 
 
-class GroqAPIError(RuntimeError):
-    """An HTTP error returned by the Groq API."""
+def _redact_api_keys(message, keys):
+    safe_message = str(message)
 
-    def __init__(self, status_code, message):
-        safe_message = str(message)
-        for api_key in _get_groq_api_keys():
-            safe_message = safe_message.replace(api_key, "[REDACTED]")
+    for key in keys:
+        if key:
+            safe_message = safe_message.replace(key, "[REDACTED]")
 
-        super().__init__(safe_message)
-        self.code = status_code
-        self.status_code = status_code
+    return safe_message
 
 
 def _provider_error_message(error, provider_name):
@@ -179,16 +209,21 @@ def _provider_error_message(error, provider_name):
         payload = json.loads(response_body.decode("utf-8"))
     except (UnicodeError, ValueError):
         detail = response_body.decode("utf-8", errors="replace").strip()
+
         if detail:
             return detail[:500]
-        return f"{provider_name} API request failed with HTTP {error.code}."
+
+        return (
+            f"{provider_name} API request failed with HTTP "
+            f"{error.code}."
+        )
 
     if isinstance(payload, dict):
         detail = payload.get("error")
 
         if isinstance(detail, dict):
             message = detail.get("message")
-            additional_details = [
+            extra = [
                 f"{name}={detail[name]}"
                 for name in ("code", "type")
                 if isinstance(detail.get(name), (str, int))
@@ -196,15 +231,11 @@ def _provider_error_message(error, provider_name):
             ]
 
             if isinstance(message, str) and message.strip():
-                suffix = (
-                    f" ({', '.join(additional_details)})"
-                    if additional_details
-                    else ""
-                )
+                suffix = f" ({', '.join(extra)})" if extra else ""
                 return f"{message.strip()}{suffix}"[:500]
 
-            if additional_details:
-                return ", ".join(additional_details)[:500]
+            if extra:
+                return ", ".join(extra)[:500]
 
         if isinstance(detail, str) and detail.strip():
             return detail.strip()[:500]
@@ -212,32 +243,65 @@ def _provider_error_message(error, provider_name):
     return json.dumps(payload, ensure_ascii=False)[:500]
 
 
-def _groq_error_message(error):
-    return _provider_error_message(error, "Groq")
+class GroqAPIError(RuntimeError):
+    """An HTTP error returned by the Groq API."""
+
+    def __init__(self, status_code, message):
+        super().__init__(
+            _redact_api_keys(message, _get_groq_api_keys())
+        )
+        self.code = status_code
+        self.status_code = status_code
+
+
+class OpenRouterAPIError(RuntimeError):
+    """An HTTP error returned by the OpenRouter API."""
+
+    def __init__(self, status_code, message):
+        key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        super().__init__(_redact_api_keys(message, [key]))
+        self.code = status_code
+        self.status_code = status_code
+
+
+def _openai_compatible_messages(message):
+    """Separate permanent identity instructions from conversation content."""
+    return [
+        {
+            "role": "system",
+            "content": LEWIS_IDENTITY,
+        },
+        {
+            "role": "user",
+            "content": message,
+        },
+    ]
 
 
 def ask_groq(message, conversation_id=None, model_name=None):
-    """Send a prompt to Groq, rotating keys for retryable key-specific errors."""
-    del conversation_id  # Conversation context is already in the prompt.
+    """Send a prompt to Groq, rotating keys after retryable key errors."""
+    del conversation_id  # Conversation history is assembled by LEWIS Core.
 
     with _request_lock:
         api_keys = _get_groq_api_keys()
+
         if not api_keys:
             raise RuntimeError(
-                "GROQ_API_KEYS or GROQ_API_KEY was not found in the .env file"
+                "GROQ_API_KEYS or GROQ_API_KEY was not found in the .env file."
             )
 
-        model_name = model_name or _configured_groq_model()
         request_body = json.dumps({
-            "model": model_name,
-            "messages": [{"role": "user", "content": message}],
+            "model": model_name or _configured_groq_model(),
+            "messages": _openai_compatible_messages(message),
         }).encode("utf-8")
 
         first_key_index = _next_groq_key_index(len(api_keys))
         last_error = None
 
         for offset in range(len(api_keys)):
-            api_key = api_keys[(first_key_index + offset) % len(api_keys)]
+            api_key = api_keys[
+                (first_key_index + offset) % len(api_keys)
+            ]
 
             request = Request(
                 GROQ_API_URL,
@@ -245,27 +309,25 @@ def ask_groq(message, conversation_id=None, model_name=None):
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
-                    "User-Agent": "ATLAS-Core/1.0",
+                    "User-Agent": "LEWIS-Core/1.0",
                 },
                 method="POST",
             )
 
             try:
                 with urlopen(request, timeout=60) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
-
+                    payload = json.loads(
+                        response.read().decode("utf-8")
+                    )
             except HTTPError as error:
                 last_error = GroqAPIError(
                     error.code,
-                    _groq_error_message(error),
+                    _provider_error_message(error, "Groq"),
                 )
 
-                # A 403 can be an edge-protection block. Retrying other keys
-                # won't fix that, so surface the error immediately.
                 if error.code == 403:
                     raise last_error from error
 
-                # Retry another key for authentication failures or rate limits.
                 if error.code not in (401, 429):
                     raise last_error from error
 
@@ -291,35 +353,21 @@ def ask_groq(message, conversation_id=None, model_name=None):
         raise RuntimeError("Groq request failed without a provider error.")
 
 
-class OpenRouterAPIError(RuntimeError):
-    """An HTTP error returned by the OpenRouter API."""
-
-    def __init__(self, status_code, message):
-        safe_message = str(message)
-        api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-
-        if api_key:
-            safe_message = safe_message.replace(api_key, "[REDACTED]")
-
-        super().__init__(safe_message)
-        self.code = status_code
-        self.status_code = status_code
-
-
 def ask_openrouter(message, conversation_id=None, model_name=None):
-    """Send a prompt to OpenRouter using the configured API key."""
-    del conversation_id  # Conversation context is already in the prompt.
+    """Send a prompt to OpenRouter with a dedicated identity instruction."""
+    del conversation_id
 
     with _request_lock:
         api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+
         if not api_key:
             raise RuntimeError(
-                "OPENROUTER_API_KEY was not found in the .env file"
+                "OPENROUTER_API_KEY was not found in the .env file."
             )
 
         request_body = json.dumps({
             "model": model_name or _configured_openrouter_model(),
-            "messages": [{"role": "user", "content": message}],
+            "messages": _openai_compatible_messages(message),
         }).encode("utf-8")
 
         request = Request(
@@ -328,6 +376,7 @@ def ask_openrouter(message, conversation_id=None, model_name=None):
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
+                "User-Agent": "LEWIS-Core/1.0",
             },
             method="POST",
         )
@@ -356,6 +405,13 @@ def ask_openrouter(message, conversation_id=None, model_name=None):
         return content
 
 
+def _gemini_system_config():
+    """Build Gemini's dedicated system-instruction configuration."""
+    return types.GenerateContentConfig(
+        system_instruction=LEWIS_IDENTITY,
+    )
+
+
 def _get_chat(conversation_id=None):
     global _client, _chat
 
@@ -369,17 +425,19 @@ def _get_chat(conversation_id=None):
             return cached_chat
 
         if _client is None:
-            api_key = os.getenv("GEMINI_API_KEY")
+            api_key = os.getenv("GEMINI_API_KEY", "").strip()
+
             if not api_key:
                 raise RuntimeError(
-                    "GEMINI_API_KEY was not found in the .env file"
+                    "GEMINI_API_KEY was not found in the .env file."
                 )
 
             client = genai.Client(api_key=api_key)
 
             try:
                 chat = client.chats.create(
-                    model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+                    model=_configured_gemini_model(),
+                    config=_gemini_system_config(),
                 )
             except Exception:
                 client.close()
@@ -388,7 +446,8 @@ def _get_chat(conversation_id=None):
             _client = client
         else:
             chat = _client.chats.create(
-                model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+                model=_configured_gemini_model(),
+                config=_gemini_system_config(),
             )
 
         if conversation_id is None:
@@ -400,16 +459,28 @@ def _get_chat(conversation_id=None):
 
 
 def ask_gemini(message, conversation_id=None):
+    """Send a message using a Gemini chat with LEWIS's identity configured."""
     with _request_lock:
         try:
-            response = _get_chat(conversation_id).send_message(message)
+            response = _get_chat(
+                conversation_id
+            ).send_message(message)
         except RuntimeError as error:
             error_message = str(error).casefold()
+
             if "client" in error_message and "closed" in error_message:
                 _discard_closed_client()
+
             raise
 
-        return response.text
+        content = getattr(response, "text", None)
+
+        if not isinstance(content, str):
+            raise RuntimeError(
+                "Gemini returned a response without text content."
+            )
+
+        return content
 
 
 def _discard_closed_client():
@@ -423,12 +494,13 @@ def _discard_closed_client():
 
 
 def close_gemini():
-    """Close the shared Gemini client once and discard its chat session."""
+    """Close the shared Gemini client and discard cached chat sessions."""
     global _client, _chat
 
     with _request_lock:
         with _client_lock:
             client = _client
+
             _client = None
             _chat = None
             _conversation_chats.clear()
@@ -439,7 +511,9 @@ def close_gemini():
 
 def _ask_gemini_selected(message, conversation_id, model_name):
     if model_name != _configured_gemini_model():
-        raise ValueError("The selected Gemini model is no longer configured.")
+        raise ValueError(
+            "The selected Gemini model is no longer configured."
+        )
 
     return ask_gemini(message, conversation_id=conversation_id)
 
@@ -485,7 +559,7 @@ def ask_ai(message, conversation_id=None):
 
 
 def is_transient_api_error(error):
-    """Return whether a provider API error is likely to resolve on retry."""
+    """Return whether a provider error is likely to resolve on retry."""
     if isinstance(error, APIError):
         status_code = getattr(error, "code", None)
     elif isinstance(error, GroqAPIError):

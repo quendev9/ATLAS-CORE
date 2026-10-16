@@ -19,6 +19,8 @@ const toggleSidePanelsButton = document.getElementById("toggleSidePanels");
 const aiModelSelect = document.getElementById("aiModelSelect");
 const applyAIModelButton = document.getElementById("applyAIModelButton");
 const aiModelSelectionStatus = document.getElementById("aiModelSelectionStatus");
+const conversationSelect = document.getElementById("conversationSelect");
+const newConversationButton = document.getElementById("newConversationButton");
 
 // ==================================================
 // HUD STATE
@@ -39,10 +41,139 @@ let aiModelSelectionSaving = false;
 let lastVoiceEventId = 0;
 let lastVoiceResponseId = 0;
 let taskStartedAt = null;
+let activeConversationId = null;
+let conversationListReady = false;
+let conversationActionInProgress = false;
 
 // ==================================================
 // MESSAGE SYSTEM
 // ==================================================
+
+function appendInlineMarkdown(parent, source) {
+    const tokenPattern = /(`[^`\n]+`|\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\*[^*\n]+\*|_[^_\n]+_|\[[^\]]+\]\([^)]+\))/g;
+    let cursor = 0;
+
+    for (const match of source.matchAll(tokenPattern)) {
+        parent.appendChild(document.createTextNode(source.slice(cursor, match.index)));
+        const token = match[0];
+        let element;
+
+        if (token.startsWith("`")) {
+            element = document.createElement("code");
+            element.textContent = token.slice(1, -1);
+        } else if (token.startsWith("**") || token.startsWith("__")) {
+            element = document.createElement("strong");
+            appendInlineMarkdown(element, token.slice(2, -2));
+        } else if (token.startsWith("~~")) {
+            element = document.createElement("del");
+            appendInlineMarkdown(element, token.slice(2, -2));
+        } else if (token.startsWith("*") || token.startsWith("_")) {
+            element = document.createElement("em");
+            appendInlineMarkdown(element, token.slice(1, -1));
+        } else {
+            const link = token.match(/^\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)$/);
+            let destination = null;
+            try {
+                if (link) destination = new URL(link[2], window.location.href);
+            } catch {
+                destination = null;
+            }
+            if (!link || !destination ||
+                !["https:", "http:", "mailto:"].includes(destination.protocol)) {
+                parent.appendChild(document.createTextNode(token));
+                cursor = match.index + token.length;
+                continue;
+            }
+            element = document.createElement("a");
+            element.href = destination.href;
+            element.target = "_blank";
+            element.rel = "noopener noreferrer";
+            appendInlineMarkdown(element, link[1]);
+        }
+
+        parent.appendChild(element);
+        cursor = match.index + token.length;
+    }
+
+    parent.appendChild(document.createTextNode(source.slice(cursor)));
+}
+
+function renderMarkdown(target, value) {
+    const lines = String(value ?? "").replace(/\r\n?/g, "\n").split("\n");
+    let index = 0;
+
+    while (index < lines.length) {
+        if (!lines[index].trim()) {
+            index += 1;
+            continue;
+        }
+
+        const fence = lines[index].match(/^\s*```(?:[\w+-]+)?\s*$/);
+        if (fence) {
+            index += 1;
+            const codeLines = [];
+            while (index < lines.length && !/^\s*```\s*$/.test(lines[index])) {
+                codeLines.push(lines[index]);
+                index += 1;
+            }
+            if (index < lines.length) index += 1;
+            const pre = document.createElement("pre");
+            const code = document.createElement("code");
+            code.textContent = codeLines.join("\n");
+            pre.appendChild(code);
+            target.appendChild(pre);
+            continue;
+        }
+
+        const heading = lines[index].match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
+        if (heading) {
+            const element = document.createElement(`h${Math.min(4, heading[1].length + 1)}`);
+            appendInlineMarkdown(element, heading[2]);
+            target.appendChild(element);
+            index += 1;
+            continue;
+        }
+
+        const listItem = lines[index].match(/^\s*(?:[-*+]\s+|\d+[.)]\s+)(.+)$/);
+        if (listItem) {
+            const ordered = /^\s*\d+[.)]/.test(lines[index]);
+            const list = document.createElement(ordered ? "ol" : "ul");
+            while (index < lines.length) {
+                const item = lines[index].match(/^\s*(?:[-*+]\s+|\d+[.)]\s+)(.+)$/);
+                if (!item || /^\s*\d+[.)]/.test(lines[index]) !== ordered) break;
+                const li = document.createElement("li");
+                appendInlineMarkdown(li, item[1]);
+                list.appendChild(li);
+                index += 1;
+            }
+            target.appendChild(list);
+            continue;
+        }
+
+        if (/^\s*>\s?/.test(lines[index])) {
+            const quote = document.createElement("blockquote");
+            while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+                const paragraph = document.createElement("p");
+                appendInlineMarkdown(paragraph, lines[index].replace(/^\s*>\s?/, ""));
+                quote.appendChild(paragraph);
+                index += 1;
+            }
+            target.appendChild(quote);
+            continue;
+        }
+
+        const paragraph = document.createElement("p");
+        const paragraphLines = [];
+        while (index < lines.length && lines[index].trim() &&
+            !/^\s{0,3}(?:#{1,6}\s|```)/.test(lines[index]) &&
+            !/^\s*(?:[-*+]\s+|\d+[.)]\s+|>)/.test(lines[index])) {
+            paragraphLines.push(lines[index]);
+            index += 1;
+        }
+        appendInlineMarkdown(paragraph, paragraphLines.join(" "));
+        target.appendChild(paragraph);
+    }
+}
 
 function addMessage(sender, text) {
     if (!messages) return;
@@ -56,7 +187,7 @@ function addMessage(sender, text) {
 
     const textElement = document.createElement("div");
     textElement.className = "message-text";
-    textElement.textContent = String(text ?? "");
+    renderMarkdown(textElement, text);
 
     message.appendChild(senderElement);
     message.appendChild(textElement);
@@ -141,12 +272,123 @@ async function apiRequest(url, options = {}) {
     return data;
 }
 
+function syncConversationControls() {
+    const busy = requestInProgress || voiceSessionActive ||
+        Boolean(voiceSessionOperation) || conversationActionInProgress;
+    if (conversationSelect) {
+        conversationSelect.disabled = !conversationListReady || busy ||
+            conversationSelect.options.length < 2;
+    }
+    if (newConversationButton) {
+        newConversationButton.disabled = busy || !conversationListReady;
+    }
+}
+
+function displayConversation(conversation) {
+    if (!messages || !conversation) return;
+
+    activeConversationId = conversation.id;
+    messages.replaceChildren();
+    const history = Array.isArray(conversation.messages)
+        ? conversation.messages
+        : [];
+
+    if (!history.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty-conversation";
+        empty.textContent = "No messages yet. Start a conversation below.";
+        messages.appendChild(empty);
+    } else {
+        history.forEach((entry) => {
+            const role = String(entry.role || "").toLowerCase();
+            const sender = role === "user" ? "YOU" :
+                role === "assistant" ? "LEWIS" : "SYSTEM";
+            addMessage(sender, entry.content || "");
+        });
+    }
+    if (conversationSelect) {
+        conversationSelect.value = conversation.id;
+    }
+}
+
+async function refreshConversationList(selectedId = null) {
+    const data = await apiRequest("/api/conversations");
+    if (!conversationSelect || !Array.isArray(data.conversations)) return;
+
+    const ordered = [...data.conversations].sort((left, right) =>
+        String(right.updated_at || "").localeCompare(String(left.updated_at || ""))
+    );
+    const options = ordered.map((conversation) => {
+        const option = document.createElement("option");
+        option.value = conversation.id;
+        option.textContent = conversation.title || "New conversation";
+        return option;
+    });
+    conversationSelect.replaceChildren(...options);
+    conversationListReady = true;
+    syncConversationControls();
+
+    const targetId = selectedId || data.active_id || null;
+    if (!targetId) return;
+    const response = await apiRequest(
+        `/api/conversations/${encodeURIComponent(targetId)}`
+    );
+    displayConversation(response.conversation);
+}
+
+async function createConversationFromHUD() {
+    if (!newConversationButton || newConversationButton.disabled ||
+        conversationActionInProgress) return;
+
+    conversationActionInProgress = true;
+    syncConversationControls();
+    try {
+        const data = await apiRequest("/api/conversations", {
+            method: "POST",
+            body: JSON.stringify({})
+        });
+        await refreshConversationList(data.conversation.id);
+        input?.focus();
+    } catch (error) {
+        console.error("LEWIS CONVERSATION CREATE ERROR:", error);
+        addMessage("SYSTEM", `Could not create a conversation: ${error.message}`);
+    } finally {
+        conversationActionInProgress = false;
+        syncConversationControls();
+    }
+}
+
+async function selectConversationFromHUD() {
+    if (!conversationSelect || conversationSelect.disabled ||
+        conversationActionInProgress) return;
+    const selectedId = conversationSelect.value;
+    if (!selectedId || selectedId === activeConversationId) return;
+
+    conversationActionInProgress = true;
+    syncConversationControls();
+    try {
+        const data = await apiRequest("/api/conversations/select", {
+            method: "POST",
+            body: JSON.stringify({ id: selectedId })
+        });
+        displayConversation(data.conversation);
+    } catch (error) {
+        console.error("LEWIS CONVERSATION SELECT ERROR:", error);
+        addMessage("SYSTEM", `Could not open that conversation: ${error.message}`);
+        if (activeConversationId) conversationSelect.value = activeConversationId;
+    } finally {
+        conversationActionInProgress = false;
+        syncConversationControls();
+    }
+}
+
 // ==================================================
 // CHAT
 // ==================================================
 
 async function sendCommand(command) {
     requestInProgress = true;
+    syncConversationControls();
     taskStartedAt = Date.now();
     setConversationState("PROCESSING");
 
@@ -179,6 +421,7 @@ async function sendCommand(command) {
     } finally {
         requestInProgress = false;
         taskStartedAt = null;
+        syncConversationControls();
         updateHUDStatus();
     }
 }
@@ -202,6 +445,14 @@ function handleCommand() {
 
 if (sendButton) {
     sendButton.addEventListener("click", handleCommand);
+}
+
+if (newConversationButton) {
+    newConversationButton.addEventListener("click", createConversationFromHUD);
+}
+
+if (conversationSelect) {
+    conversationSelect.addEventListener("change", selectConversationFromHUD);
 }
 
 if (input) {
@@ -514,17 +765,23 @@ function syncAIModelControls(data) {
 
     if (!aiModelSelectionDirty) {
         const currentOptions = Array.from(aiModelSelect.options);
-        const optionsChanged = currentOptions.length !== data.ai_models.length ||
-            data.ai_models.some((entry, index) =>
+        const modelOptions = data.ai_models.length
+            ? data.ai_models
+            : [{ provider: "", name: "No configured AI providers", model: "" }];
+        const optionsChanged = currentOptions.length !== modelOptions.length ||
+            modelOptions.some((entry, index) =>
                 currentOptions[index]?.value !== entry.provider ||
                 currentOptions[index]?.dataset.model !== entry.model
             );
         if (optionsChanged) {
-            const options = data.ai_models.map((entry) => {
+            const options = modelOptions.map((entry) => {
                 const option = document.createElement("option");
                 option.value = entry.provider;
                 option.dataset.model = entry.model;
-                option.textContent = `${entry.name} — ${entry.model}`;
+                option.textContent = entry.model
+                    ? `${entry.name} — ${entry.model}`
+                    : entry.name;
+                option.disabled = !entry.model;
                 return option;
             });
             aiModelSelect.replaceChildren(...options);
@@ -536,9 +793,10 @@ function syncAIModelControls(data) {
                 option.dataset.model === selection.model
         );
         if (selectedOption) {
-            aiModelSelect.value = selectedOption.value;
+            selectedOption.selected = true;
         }
     }
+    aiModelSelect.disabled = data.ai_models.length === 0;
 
     const selectedOption = aiModelSelect.selectedOptions[0];
     const isDirty = aiModelSelectionDirty &&
@@ -552,7 +810,9 @@ function syncAIModelControls(data) {
     }
     if (!aiModelSelectionDirty && aiModelSelectionStatus) {
         aiModelSelectionStatus.textContent =
-            `Active: ${data.ai_provider} — ${data.ai_model}`;
+            data.ai_models.length
+                ? `Active: ${data.ai_provider} — ${data.ai_model}`
+                : "Configure provider credentials to select an AI model.";
     }
 }
 
@@ -661,6 +921,7 @@ async function updateHUDStatus() {
         voiceSessionActive = Boolean(data.voice_session_active);
         voiceSessionStopping = Boolean(data.voice_session_stopping);
         voiceSpeaking = speaking;
+        syncConversationControls();
         setText(
             "voiceStatus",
             !voiceAvailable ? "UNAVAILABLE" : speaking ? "SPEAKING" :
@@ -751,6 +1012,8 @@ async function updateHUDStatus() {
         if (taskProgressBar) taskProgressBar.style.width = "0%";
         if (voiceCard) voiceCard.dataset.active = "false";
         setOrbState("idle");
+        setConversationState(requestInProgress ? "PROCESSING" : "OFFLINE");
+        syncConversationControls();
         const systemStatusItem = document.getElementById("systemStatusItem");
         if (systemStatusItem) {
             systemStatusItem.dataset.status = "offline";
@@ -946,6 +1209,11 @@ async function updateSystemLog() {
 // ==================================================
 
 syncVoiceSessionControls();
+syncConversationControls();
+refreshConversationList().catch((error) => {
+    console.error("LEWIS CONVERSATION LOAD ERROR:", error);
+    addMessage("SYSTEM", `Conversation history could not be loaded: ${error.message}`);
+});
 updateHUDStatus();
 updateSystemLog();
 updateClock();

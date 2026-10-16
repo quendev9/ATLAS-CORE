@@ -1,4 +1,5 @@
 import re
+import time
 
 from ai.model import (
     ask_ai,
@@ -21,7 +22,7 @@ from memory.conversations import (
 )
 from core.commands import handle_deterministic_command
 from core.context_builder import build_context
-from core.identity import LEWIS_IDENTITY
+from core.identity import remove_response_emojis
 from core.router import classify_input
 from core.event_logger import log_event
 
@@ -161,6 +162,7 @@ class Lewis:
         )
 
         if local_command_result is not None:
+            local_command_result = remove_response_emojis(local_command_result)
             self._record_message(
                 "assistant",
                 local_command_result,
@@ -192,6 +194,7 @@ class Lewis:
                     remember_memory(key, value)
                     response = "I'll remember that."
 
+                response = remove_response_emojis(response)
                 self._record_message(
                     "assistant",
                     response,
@@ -219,6 +222,7 @@ class Lewis:
                         else "I don't have that in my memory."
                     )
 
+                response = remove_response_emojis(response)
                 self._record_message(
                     "assistant",
                     response,
@@ -231,6 +235,7 @@ class Lewis:
                 "Use memory commands like "
                 "'remember X is Y' or 'recall X'."
             )
+            response = remove_response_emojis(response)
             self._record_message(
                 "assistant",
                 response,
@@ -250,6 +255,7 @@ class Lewis:
             )
 
             if memory_response is not None:
+                memory_response = remove_response_emojis(memory_response)
                 self._record_message(
                     "assistant",
                     memory_response,
@@ -282,15 +288,9 @@ class Lewis:
                 max_memory_facts=6,
             )
 
-            prompt = (
-                f"{LEWIS_IDENTITY}\n\n"
-                f"{context}"
-            )
+            prompt = context
         else:
-            prompt = (
-                f"{LEWIS_IDENTITY}\n\n"
-                f"User message:\n{user_input}\n"
-            )
+            prompt = f"User message:\n{user_input}\n"
 
         # ---------------------------------------------------------
         # AI RESPONSE
@@ -298,11 +298,18 @@ class Lewis:
 
         log_event("AI REQUEST STARTED")
 
+        response_started = time.perf_counter()
         try:
-            response = ask_ai(
-                prompt,
-                conversation_id=source_conversation_id,
-            )
+            try:
+                response = ask_ai(
+                    prompt,
+                    conversation_id=source_conversation_id,
+                )
+            finally:
+                log_event(
+                    "AI RESPONSE TIME: "
+                    f"{(time.perf_counter() - response_started) * 1000:.0f} ms"
+                )
 
         except Exception as error:
             provider_name = get_ai_provider_info()["provider"]
@@ -394,6 +401,7 @@ class Lewis:
 
         if not isinstance(response, str):
             response = str(response)
+        response = remove_response_emojis(response)
 
         # Save the assistant response to the same conversation as
         # the user's message, even if the active conversation changed.

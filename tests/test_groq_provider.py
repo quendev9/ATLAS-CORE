@@ -6,6 +6,7 @@ from urllib.error import HTTPError
 from unittest.mock import patch
 
 from ai import model
+from core.identity import LEWIS_IDENTITY
 
 
 def _success_response(content):
@@ -60,7 +61,10 @@ class GroqProviderTests(unittest.TestCase):
         )
         self.assertEqual(
             json.loads(request.call_args_list[0].args[0].data)["messages"],
-            [{"role": "user", "content": "hello"}],
+            [
+                {"role": "system", "content": LEWIS_IDENTITY},
+                {"role": "user", "content": "hello"},
+            ],
         )
 
     def test_rate_limited_key_retries_with_next_key(self):
@@ -171,6 +175,7 @@ class GroqProviderTests(unittest.TestCase):
 
     def test_provider_info_reports_groq_configuration(self):
         os.environ["AI_PROVIDER"] = "groq"
+        os.environ["GROQ_API_KEY"] = "test-key"
         os.environ["GROQ_API_KEYS"] = "first-key,second-key"
         os.environ["GROQ_MODEL"] = "llama-test-model"
 
@@ -186,6 +191,44 @@ class GroqProviderTests(unittest.TestCase):
                 },
             },
         )
+
+    def test_requested_groq_models_are_selectable_only_when_configured(self):
+        self.assertFalse(
+            any(item["provider"] == "groq"
+                for item in model.get_available_ai_models())
+        )
+
+        os.environ["GROQ_API_KEY"] = "test-key"
+        choices = [
+            item["model"]
+            for item in model.get_available_ai_models()
+            if item["provider"] == "groq"
+        ]
+        self.assertIn("openai/gpt-oss-20b", choices)
+        self.assertIn("openai/gpt-oss-120b", choices)
+
+        for model_name in ("openai/gpt-oss-20b", "openai/gpt-oss-120b"):
+            with self.subTest(model_name=model_name):
+                model.set_ai_selection("groq", model_name)
+                with patch.object(
+                    model,
+                    "ask_groq",
+                    return_value="Groq reply",
+                ) as ask_groq:
+                    self.assertEqual(model.ask_ai("test"), "Groq reply")
+                ask_groq.assert_called_once_with(
+                    "test",
+                    conversation_id=None,
+                    model_name=model_name,
+                )
+                self.assertEqual(
+                    model.get_ai_selection(),
+                    {"provider": "groq", "model": model_name},
+                )
+
+    def test_groq_selection_requires_provider_credentials(self):
+        with self.assertRaisesRegex(ValueError, "supported AI provider"):
+            model.set_ai_selection("groq", "openai/gpt-oss-20b")
 
     def test_manual_selection_dispatches_to_the_selected_provider_and_model(self):
         os.environ["GEMINI_API_KEY"] = "gemini-test-key"
@@ -247,7 +290,10 @@ class GroqProviderTests(unittest.TestCase):
         self.assertEqual(payload["model"], "openai/gpt-oss-20b")
         self.assertEqual(
             payload["messages"],
-            [{"role": "user", "content": "typed or transcribed message"}],
+            [
+                {"role": "system", "content": LEWIS_IDENTITY},
+                {"role": "user", "content": "typed or transcribed message"},
+            ],
         )
 
     def test_unsupported_manual_selection_is_rejected(self):

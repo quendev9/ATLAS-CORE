@@ -15,6 +15,19 @@ def classify_input(user_input):
     lowered = text.lower()
     normalized = lowered.rstrip("?").strip()
 
+    if re.search(
+        r"\b(?:who\s+(?:created|built)\s+(?:you|lewis)|"
+        r"who\s+is\s+(?:(?:your|the)\s+)?creator|"
+        r"who\s+is\s+quen|"
+        r"who\s+am\s+i\s+to\s+you|"
+        r"what\s+is\s+quen\s+to\s+you|"
+        r"do\s+you\s+know\s+who\s+(?:(?:created|built)\s+(?:you|lewis)|"
+        r"(?:your|my)\s+creator(?:\s+is)?|i\s+am))\b",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return "AI_REQUEST"
+
     if lowered.startswith("remember ") or lowered.startswith("recall "):
         return "MEMORY_COMMAND"
 

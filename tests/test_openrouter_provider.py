@@ -6,6 +6,7 @@ from urllib.error import HTTPError
 from unittest.mock import patch
 
 from ai import model
+from core.identity import LEWIS_IDENTITY
 
 
 def _success_response(content):
@@ -51,13 +52,17 @@ class OpenRouterProviderTests(unittest.TestCase):
             json.loads(sent_request.data),
             {
                 "model": "openrouter/free",
-                "messages": [{"role": "user", "content": "hello"}],
+                "messages": [
+                    {"role": "system", "content": LEWIS_IDENTITY},
+                    {"role": "user", "content": "hello"},
+                ],
             },
         )
         request.assert_called_once_with(sent_request, timeout=60)
 
     def test_selected_model_is_sent_and_selection_switches_backend(self):
         os.environ["GEMINI_MODEL"] = "gemini-3.6-flash"
+        os.environ["GEMINI_API_KEY"] = "test-gemini-key"
         os.environ["OPENROUTER_API_KEY"] = "test-openrouter-key"
         os.environ["OPENROUTER_MODEL"] = "openrouter/free"
 

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from ai import model
+from core.identity import LEWIS_IDENTITY
 
 
 class _FakeChat:
@@ -24,10 +25,12 @@ class _FakeChats:
     def __init__(self, client):
         self._client = client
         self.create_calls = []
+        self.config_calls = []
         self.created_chats = []
 
-    def create(self, model):
+    def create(self, model, config=None):
         self.create_calls.append(model)
+        self.config_calls.append(config)
         self.chat = _FakeChat(self._client)
         self.created_chats.append(self.chat)
         return self.chat
@@ -68,6 +71,10 @@ class GeminiClientLifecycleTests(unittest.TestCase):
         client = _FakeClient.instances[0]
         self.assertFalse(client.closed)
         self.assertEqual(client.chats.create_calls, ["gemini-3.6-flash"])
+        self.assertEqual(
+            client.chats.config_calls[0].system_instruction,
+            LEWIS_IDENTITY,
+        )
         self.assertEqual(client.chats.chat.messages, ["first", "second"])
 
     def test_conversations_use_separate_sdk_chat_histories(self):
@@ -119,7 +126,7 @@ class GeminiClientLifecycleTests(unittest.TestCase):
         self.assertEqual(len(_FakeClient.instances), 2)
 
     def test_failed_chat_creation_closes_unpublished_client(self):
-        def fail_chat_creation(client, model):
+        def fail_chat_creation(client, model, config=None):
             raise RuntimeError("chat initialization failed")
 
         with patch.object(_FakeChats, "create", fail_chat_creation):

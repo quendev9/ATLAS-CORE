@@ -3,12 +3,15 @@ import os
 import re
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 import pyttsx3
 from dotenv import load_dotenv
 from fishaudio import FishAudio
 from fishaudio.utils import save
+
+from core.event_logger import log_event
 
 
 load_dotenv()
@@ -50,23 +53,71 @@ def _get_fish_client():
 
 
 def _prepare_speech(text):
-    """Remove common Markdown formatting before speaking."""
-    text = re.sub(r"```.*?```", " Code block omitted. ", text, flags=re.S)
-    text = re.sub(r"`([^`]*)`", r"\1", text)
-    text = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", text)
-    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    """Return readable speech text without changing the displayed Markdown."""
+    if not isinstance(text, str) or not text.strip():
+        return ""
+
+    preserved = []
+
+    def hold(value):
+        token = f"LEWISPRESERVED{len(preserved)}TOKEN"
+        preserved.append(value)
+        return token
+
+    def keep_code_block(match):
+        return hold(match.group(2).strip())
+
+    text = re.sub(
+        r"```[ \t]*([^\n]*)\n?(.*?)```",
+        keep_code_block,
+        text,
+        flags=re.S,
+    )
+    text = re.sub(r"`([^`\n]*)`", lambda match: hold(match.group(1)), text)
+    text = re.sub(
+        r"!\[([^\]]*)\]\(([^)\s]+)(?:\s+[^)]*)?\)",
+        lambda match: match.group(1),
+        text,
+    )
+    text = re.sub(
+        r"\[([^\]]+)\]\(([^)\s]+)(?:\s+[^)]*)?\)",
+        lambda match: f"{match.group(1)} ({match.group(2)})",
+        text,
+    )
+    text = re.sub(r"<(https?://[^>]+)>", r"\1", text)
     text = re.sub(r"(\*\*|__)(.*?)\1", r"\2", text)
     text = re.sub(r"(?<!\w)[*_](.*?)[*_](?!\w)", r"\1", text)
     text = re.sub(r"^\s{0,3}#{1,6}\s+", "", text, flags=re.M)
-    text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.M)
+    text = re.sub(
+        r"(?m)^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\s*$",
+        "",
+        text,
+    )
+    text = re.sub(r"^\s*[-*+]\s+", ". ", text, flags=re.M)
+    text = re.sub(r"^\s*(\d+[.)])\s+", r"\1 ", text, flags=re.M)
+    text = re.sub(r"^\s*>\s?", "", text, flags=re.M)
+    text = re.sub(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$", "", text, flags=re.M)
+    text = re.sub(
+        r"(?m)^\s*\|(.+)\|\s*$",
+        lambda match: match.group(1).replace("|", ", "),
+        text,
+    )
+    text = re.sub(r"(?<!\w)[*_~]+|[*_~]+(?!\w)", "", text)
+    text = re.sub(r"\n{2,}", ". ", text)
     text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"^\.\s+", "", text)
+
+    for index, value in enumerate(preserved):
+        text = text.replace(f"LEWISPRESERVED{index}TOKEN", value)
+
     return text.strip()
 
 
-def _speak_fish(text, cancel_event=None):
+def _speak_fish(text, cancel_event=None, on_playback_start=None):
     """Generate and play speech using Fish Audio."""
     client = _get_fish_client()
 
+    generation_started = time.perf_counter()
     audio = client.tts.convert(
         text=text,
         reference_id=VOICE_ID,
@@ -82,6 +133,10 @@ def _speak_fish(text, cancel_event=None):
 
     try:
         save(audio, str(audio_path))
+        log_event(
+            "VOICE TTS GENERATION: "
+            f"{(time.perf_counter() - generation_started) * 1000:.0f} ms"
+        )
 
         if _stop_requested.is_set() or (
             cancel_event and cancel_event.is_set()
@@ -95,6 +150,12 @@ def _speak_fish(text, cancel_event=None):
         if not _stop_requested.is_set() and not (
             cancel_event and cancel_event.is_set()
         ):
+            if on_playback_start:
+                on_playback_start()
+            log_event(
+                "VOICE PLAYBACK STARTUP: "
+                f"{(time.perf_counter() - generation_started) * 1000:.0f} ms"
+            )
             playsound(str(audio_path))
     finally:
         try:
@@ -103,18 +164,22 @@ def _speak_fish(text, cancel_event=None):
             pass
 
 
-def _speak_local(text):
+def _speak_local(text, on_playback_start=None):
     """Speak with the existing offline Windows/system voice."""
+    playback_started = time.perf_counter()
     engine = _get_engine()
     engine.say(text)
+    if on_playback_start:
+        on_playback_start()
+    log_event(
+        "VOICE PLAYBACK STARTUP: local voice "
+        f"{(time.perf_counter() - playback_started) * 1000:.0f} ms"
+    )
     engine.runAndWait()
 
 
-def speak(text, cancel_event=None):
+def speak(text, cancel_event=None, on_playback_start=None):
     """Speak with Fish Audio, falling back to the local voice on errors."""
-    if not isinstance(text, str) or not text.strip():
-        return False
-
     clean_text = _prepare_speech(text)
     if not clean_text:
         return False
@@ -128,7 +193,7 @@ def speak(text, cancel_event=None):
             return False
 
         try:
-            _speak_fish(clean_text, cancel_event)
+            _speak_fish(clean_text, cancel_event, on_playback_start)
         except Exception as error:
             print(f"[LEWIS voice] Fish Audio unavailable: {error}")
             print("[LEWIS voice] Using local fallback voice.")
@@ -137,9 +202,10 @@ def speak(text, cancel_event=None):
                 if not _stop_requested.is_set() and not (
                     cancel_event and cancel_event.is_set()
                 ):
-                    _speak_local(clean_text)
+                    _speak_local(clean_text, on_playback_start)
             except Exception as fallback_error:
                 print(f"[LEWIS voice] Local speech failed: {fallback_error}")
+                log_event("VOICE PLAYBACK FAILED")
                 return False
 
         return not _stop_requested.is_set() and not (
@@ -156,3 +222,8 @@ def stop_speaking():
             _engine.stop()
         except Exception:
             pass
+
+
+def was_stop_requested():
+    """Report whether the most recent speech operation was interrupted."""
+    return _stop_requested.is_set()

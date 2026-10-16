@@ -136,7 +136,11 @@
 
                 <section id="conversation" class="conversation" aria-label="Conversation">
                     <div class="conversation-header">
-                        <span>LEWIS INTERFACE <span class="conversation-state" aria-live="polite" data-state="ready">READY</span></span>
+                        <span class="conversation-title">LEWIS INTERFACE <span class="conversation-state" aria-live="polite" data-state="ready">READY</span></span>
+                        <select id="conversationSelect" aria-label="Open a conversation" disabled>
+                            <option>Loading conversations...</option>
+                        </select>
+                        <button id="newConversationButton" class="expand-chat-button" type="button" title="Create a new conversation">NEW</button>
                         <button id="expandChatButton" class="expand-chat-button" type="button" aria-expanded="false">EXPAND</button>
                     </div>
                     <div id="messages" class="messages" aria-live="polite">

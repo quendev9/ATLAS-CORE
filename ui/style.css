@@ -18,8 +18,6 @@
     --muted: #8a949a;
     --dim: #59636a;
     --silver: #d7dcdf;
-    --green: #8fd8b0;
-    --amber: #d2b88b;
     font-family: "Segoe UI", Arial, sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -55,6 +53,7 @@ button {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
+select:focus-visible,
 summary:focus-visible {
     outline: 1px solid #c5cdd1;
     outline-offset: 3px;
@@ -177,12 +176,12 @@ summary:focus-visible {
 }
 
 #systemStatusItem[data-status="online"] .status-dot {
-    background: var(--green);
-    box-shadow: 0 0 9px rgba(143, 216, 176, .48);
+    background: var(--silver);
+    box-shadow: 0 0 9px rgba(215, 220, 223, .32);
 }
 
 #systemStatusItem[data-status="offline"] .status-dot {
-    background: #c68181;
+    background: #7b858a;
 }
 
 .provider-mark {
@@ -761,11 +760,33 @@ summary:focus-visible {
     min-height: 30px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     padding: 4px 13px;
     color: #aeb7bb;
     font-size: 8px;
     letter-spacing: .8px;
+}
+
+.conversation-title {
+    margin-right: auto;
+    white-space: nowrap;
+}
+
+#conversationSelect {
+    width: min(190px, 28%);
+    min-width: 82px;
+    padding: 4px 6px;
+    border: 1px solid #30383d;
+    border-radius: 5px;
+    background: #111518;
+    color: #c9d0d3;
+    font-size: 8px;
+}
+
+#conversationSelect:disabled,
+#newConversationButton:disabled {
+    cursor: not-allowed;
+    opacity: .55;
 }
 
 .conversation-state {
@@ -778,12 +799,12 @@ summary:focus-visible {
 .conversation-state[data-state="thinking"],
 .conversation-state[data-state="speaking"],
 .conversation-state[data-state="listening"] {
-    color: var(--green);
+    color: var(--silver);
 }
 
 .conversation-state[data-state="offline"],
 .conversation-state[data-state="error"] {
-    color: #d29393;
+    color: #b9c0c3;
 }
 
 .expand-chat-button {
@@ -825,10 +846,87 @@ summary:focus-visible {
     color: #aeb8bc;
     font-size: 10px;
     line-height: 1.6;
-    white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 
+.message-text > p {
+    margin: 0 0 .55em;
+}
+
+.message-text > p:last-child,
+.message-text > :last-child {
+    margin-bottom: 0;
+}
+
+.message-text h2,
+.message-text h3,
+.message-text h4 {
+    margin: .65em 0 .35em;
+    color: #d7dcdf;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.message-text h2 { font-size: 1.2em; }
+.message-text h3 { font-size: 1.1em; }
+.message-text h4 { font-size: 1.02em; }
+
+.message-text ul,
+.message-text ol {
+    margin: .35em 0 .65em;
+    padding-left: 1.5em;
+}
+
+.message-text li + li {
+    margin-top: .25em;
+}
+
+.message-text a {
+    color: #e0e4e6;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.message-text code,
+.message-text pre {
+    border: 1px solid #30383d;
+    border-radius: 4px;
+    background: #101417;
+    color: #e0e4e6;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+.message-text code {
+    padding: 1px 4px;
+}
+
+.message-text pre {
+    max-width: 100%;
+    overflow: auto;
+    margin: .45em 0;
+    padding: 9px;
+    white-space: pre;
+}
+
+.message-text pre code {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.message-text blockquote {
+    margin: .4em 0;
+    padding-left: 9px;
+    border-left: 2px solid #59636a;
+    color: #c2c9cc;
+}
+
+.empty-conversation {
+    margin: auto;
+    padding: 14px 0;
+    color: #aeb8bc;
+    text-align: center;
+}
 .input-area {
     min-height: 39px;
     display: flex;
@@ -1017,7 +1115,7 @@ summary:focus-visible {
     max-height: 34px;
     overflow: auto;
     padding: 0 13px;
-    color: #d29393;
+    color: #b9c0c3;
     font-size: 8px;
 }
 
@@ -1494,7 +1592,7 @@ summary:focus-visible {
 }
 
 .lewis-offline #systemStatusItem[data-status="offline"] strong {
-    color: #d29393;
+    color: #b9c0c3;
 }
 
 @keyframes orbit-spin {
@@ -1802,6 +1900,21 @@ summary:focus-visible {
 }
 
 @media (max-width: 540px) {
+    .conversation-header {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 7px 9px;
+    }
+
+    .conversation-title {
+        flex: 1 0 100%;
+    }
+
+    #conversationSelect {
+        width: auto;
+        flex: 1 1 40%;
+    }
+
     .main-nav {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }

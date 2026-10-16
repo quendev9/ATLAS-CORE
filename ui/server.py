@@ -27,6 +27,13 @@ sys.path.insert(0, str(PROJECT_DIR))
 # ---------------------------------------------------------
 
 from core.event_logger import get_events, log_event
+from memory.conversations import (
+    create_conversation,
+    get_active_conversation_id,
+    get_conversation,
+    list_conversations,
+    set_active_conversation,
+)
 
 try:
     from core.lewis import Lewis
@@ -55,7 +62,7 @@ except Exception as error:
     print("LEWIS VOICE INPUT IMPORT ERROR:", type(error).__name__, str(error))
 
 try:
-    from voice.speech_output import speak, stop_speaking
+    from voice.speech_output import speak, stop_speaking, was_stop_requested
     VOICE_OUTPUT_AVAILABLE = True
 except Exception as error:
     VOICE_OUTPUT_AVAILABLE = False
@@ -125,10 +132,6 @@ def update_state(**changes):
             server_state["activity"] = "PROCESSING"
         elif server_state["listening"]:
             server_state["activity"] = "LISTENING"
-        elif server_state["last_error"] and not server_state[
-            "voice_session_active"
-        ]:
-            server_state["activity"] = "ERROR"
         else:
             server_state["activity"] = "READY"
 
@@ -206,6 +209,7 @@ def get_status():
         "uptime": int(time.time() - START_TIME),
         "system": get_system_data(),
         "activity": state["activity"],
+        "processing": state["processing"],
         "voice_available": state["voice_available"],
         "voice_output_available": VOICE_OUTPUT_AVAILABLE,
         "voice_enabled": state["voice_enabled"],
@@ -291,14 +295,23 @@ def _speak_session_text(text, stop_event):
     if stop_event.is_set():
         return
 
-    update_state(speaking=True)
-    log_event("VOICE OUTPUT STARTED")
+    def playback_started():
+        update_state(processing=False, speaking=True)
+        log_event("VOICE OUTPUT STARTED")
 
     try:
-        speak(text, cancel_event=stop_event)
+        update_state(processing=True, speaking=False)
+        completed = speak(
+            text,
+            cancel_event=stop_event,
+            on_playback_start=playback_started,
+        )
     finally:
-        update_state(speaking=False)
+        update_state(processing=False, speaking=False)
 
+    if not completed and not stop_event.is_set():
+        update_state(last_error="Speech output could not be completed.")
+        log_event("VOICE OUTPUT FAILED")
     log_event("VOICE OUTPUT FINISHED")
 
 
@@ -329,11 +342,11 @@ def voice_worker(stop_event):
             if stop_event.is_set():
                 break
 
-            update_state(listening=True)
             try:
                 transcript = listen_once(
                     stop_event=stop_event,
                     interrupt_event=voice_interrupt_event,
+                    on_capture_start=lambda: update_state(listening=True),
                 )
             finally:
                 update_state(listening=False)
@@ -484,6 +497,33 @@ class LewisHandler(BaseHTTPRequestHandler):
             send_json(self, {"logs": get_events()})
             return
 
+        if path == "/api/conversations":
+            conversations = list_conversations()
+            send_json(
+                self,
+                {
+                    "conversations": [
+                        {
+                            "id": item["id"],
+                            "title": item["title"],
+                            "updated_at": item["updated_at"],
+                        }
+                        for item in conversations
+                    ],
+                    "active_id": get_active_conversation_id(),
+                },
+            )
+            return
+
+        if path.startswith("/api/conversations/"):
+            conversation_id = path[len("/api/conversations/"):]
+            conversation = get_conversation(conversation_id)
+            if conversation is None:
+                send_json(self, {"error": "Conversation not found."}, 404)
+            else:
+                send_json(self, {"conversation": conversation})
+            return
+
         if path in ("/", "/index.html"):
             self.serve_file(UI_DIR / "index.html", "text/html")
             return
@@ -520,6 +560,14 @@ class LewisHandler(BaseHTTPRequestHandler):
             self.handle_ai_model_selection()
             return
 
+        if path == "/api/conversations":
+            self.handle_conversation_create()
+            return
+
+        if path == "/api/conversations/select":
+            self.handle_conversation_select()
+            return
+
         if path == "/api/voice/listen":
             self.handle_voice_listen()
             return
@@ -549,6 +597,64 @@ class LewisHandler(BaseHTTPRequestHandler):
     # -----------------------------------------------------
     # TEXT CHAT
     # -----------------------------------------------------
+
+    def handle_conversation_create(self):
+        data = read_json_body(self)
+        if data is None:
+            send_json(self, {"error": "Invalid JSON."}, 400)
+            return
+        if not LEWIS_AVAILABLE or lewis is None:
+            send_json(self, {"error": "LEWIS Core is unavailable."}, 503)
+            return
+
+        title = data.get("title", "New conversation")
+        if not isinstance(title, str) or len(title.strip()) > 120:
+            send_json(self, {"error": "Conversation title is invalid."}, 400)
+            return
+
+        try:
+            conversation = create_conversation(
+                title=title.strip() or "New conversation",
+                project=lewis.active_project,
+            )
+            lewis.active_conversation_id = conversation["id"]
+            send_json(self, {"conversation": conversation}, 201)
+        except Exception as error:
+            print("LEWIS CONVERSATION CREATE ERROR:", type(error).__name__)
+            send_json(
+                self,
+                {"error": "Could not create a conversation."},
+                500,
+            )
+
+    def handle_conversation_select(self):
+        data = read_json_body(self)
+        if data is None or not isinstance(data.get("id"), str):
+            send_json(self, {"error": "Provide a conversation ID."}, 400)
+            return
+        if not LEWIS_AVAILABLE or lewis is None:
+            send_json(self, {"error": "LEWIS Core is unavailable."}, 503)
+            return
+
+        conversation = get_conversation(data["id"])
+        if conversation is None:
+            send_json(self, {"error": "Conversation not found."}, 404)
+            return
+
+        try:
+            set_active_conversation(conversation["id"])
+            lewis.active_conversation_id = conversation["id"]
+            lewis.active_project = (
+                conversation.get("project") or lewis.active_project
+            )
+            send_json(self, {"conversation": conversation})
+        except Exception as error:
+            print("LEWIS CONVERSATION SELECT ERROR:", type(error).__name__)
+            send_json(
+                self,
+                {"error": "Could not open the conversation."},
+                500,
+            )
 
     def handle_ai_model_selection(self):
         data = read_json_body(self)
@@ -756,12 +862,25 @@ class LewisHandler(BaseHTTPRequestHandler):
             return
 
         def speech_worker():
+            def playback_started():
+                update_state(processing=False, speaking=True)
+                log_event("VOICE OUTPUT STARTED")
+
             try:
                 update_state(
-                    speaking=True,
+                    processing=True,
+                    speaking=False,
                     last_error="",
                 )
-                speak(text)
+                completed = speak(
+                    text,
+                    on_playback_start=playback_started,
+                )
+                if not completed and not was_stop_requested():
+                    update_state(
+                        last_error="Speech output could not be completed."
+                    )
+                    log_event("VOICE OUTPUT FAILED")
 
             except Exception as error:
                 print("LEWIS SPEECH ERROR:", type(error).__name__)
@@ -774,6 +893,7 @@ class LewisHandler(BaseHTTPRequestHandler):
 
             finally:
                 update_state(
+                    processing=False,
                     speaking=False,
                 )
 

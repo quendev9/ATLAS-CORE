@@ -14,6 +14,7 @@ from google.genai.errors import ServerError
 
 import main as lewis_main
 from core import lewis as lewis_module
+from core.identity import LEWIS_IDENTITY
 from core.lewis import Lewis
 from memory import conversations
 from memory import memory as memory_storage
@@ -503,10 +504,10 @@ assert any(fact["subject"] == "AXIS" and fact["value"] == "ATLAS" for fact in fa
             self.assertEqual(lewis.process("Tell me a story"), "Gemini response")
 
         ask_gemini.assert_called_once()
-        self.assertEqual(
-            [call.args[0] for call in log_event.call_args_list],
-            ["AI REQUEST STARTED", "AI RESPONSE RECEIVED"],
-        )
+        events = [call.args[0] for call in log_event.call_args_list]
+        self.assertEqual(events[0], "AI REQUEST STARTED")
+        self.assertRegex(events[1], r"^AI RESPONSE TIME: \d+ ms$")
+        self.assertEqual(events[2], "AI RESPONSE RECEIVED")
 
     def test_named_robot_can_be_recalled_by_common_question_forms(self):
         project_memory_storage.remember_project_fact(
@@ -775,9 +776,10 @@ assert [message["role"] for message in exchange["messages"]] == [
 
         prompt = ask_gemini.call_args.args[0]
         self.assertIn("a cyberdeck, any suggestions", prompt)
-        self.assertIn("confirmed user decisions", prompt)
-        self.assertIn("Treat assistant-generated suggestions", prompt)
-        self.assertIn("no choice is recorded", prompt)
+        self.assertNotIn("confirmed user decisions", prompt)
+        self.assertIn("confirmed user decisions", LEWIS_IDENTITY)
+        self.assertIn("Treat assistant-generated suggestions", LEWIS_IDENTITY)
+        self.assertIn("no choice is recorded", LEWIS_IDENTITY)
 
     def test_corrupted_json_raises_without_overwriting_data(self):
         corrupted = '{"memories": ['

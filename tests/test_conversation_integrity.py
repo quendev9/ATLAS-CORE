@@ -193,6 +193,7 @@ class ConversationIntegrityTests(unittest.TestCase):
                 os.environ,
                 {
                     "AI_PROVIDER": "groq",
+                    "GROQ_API_KEY": "test-groq-key",
                     "GROQ_MODEL": "openai/gpt-oss-20b",
                 },
             ),
@@ -225,6 +226,7 @@ class ConversationIntegrityTests(unittest.TestCase):
                         os.environ,
                         {
                             "AI_PROVIDER": "groq",
+                            "GROQ_API_KEY": "test-groq-key",
                             "GROQ_MODEL": "openai/gpt-oss-20b",
                         },
                     ),

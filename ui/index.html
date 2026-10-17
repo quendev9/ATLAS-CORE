@@ -17,30 +17,68 @@
                 </span>
                 <span class="brand-name">LEWIS</span>
             </a>
-            <div class="brand-subtitle">LEWIS — Learning, Engineering &amp; Workflow Intelligence System</div>
+
+            <div class="brand-subtitle">
+                LEWIS — Learning, Engineering &amp; Workflow Intelligence System
+            </div>
+
             <div class="top-status" aria-live="polite">
                 <span class="top-status-item" id="systemStatusItem" data-status="unknown">
                     <span class="status-dot"></span>
-                    <span><strong id="coreStatus">CONNECTING</strong><small>System status</small></span>
+                    <span>
+                        <strong id="coreStatus">CONNECTING</strong>
+                        <small>System status</small>
+                    </span>
                 </span>
+
                 <span class="top-status-item">
                     <span class="provider-mark" aria-hidden="true">✳</span>
-                    <span><strong id="aiProviderName">Gemini</strong><small id="aiStatus">Checking provider</small></span>
+                    <span>
+                        <strong id="aiProviderName">Gemini</strong>
+                        <small id="aiStatus">Checking provider</small>
+                    </span>
                 </span>
+
                 <span class="top-status-item">
                     <span class="status-icon" aria-hidden="true">▤</span>
-                    <span><strong id="memoryStatus">CHECKING</strong><small>Memory</small></span>
+                    <span>
+                        <strong id="memoryStatus">CHECKING</strong>
+                        <small>Memory</small>
+                    </span>
                 </span>
+
                 <span class="top-status-item">
                     <span class="status-icon voice-icon" aria-hidden="true">▥</span>
-                    <span><strong id="voiceStatus">CHECKING</strong><small>Voice modules</small></span>
+                    <span>
+                        <strong id="voiceStatus">CHECKING</strong>
+                        <small>Voice modules</small>
+                    </span>
                 </span>
+
                 <time class="clock" id="systemClock">--:--<small>---</small></time>
             </div>
+
             <nav class="panel-controls" aria-label="Panel visibility">
-                <button id="toggleLeftPanel" type="button" aria-expanded="true" aria-label="Toggle navigation panel">NAV</button>
-                <button id="toggleRightPanel" type="button" aria-expanded="true" aria-label="Toggle diagnostics panel">INFO</button>
-                <button id="toggleSidePanels" type="button" aria-expanded="true" aria-label="Toggle both side panels">PANELS</button>
+                <button
+                    id="toggleLeftPanel"
+                    type="button"
+                    aria-expanded="true"
+                    aria-label="Toggle navigation panel"
+                >NAV</button>
+
+                <button
+                    id="toggleRightPanel"
+                    type="button"
+                    aria-expanded="true"
+                    aria-label="Toggle diagnostics panel"
+                >INFO</button>
+
+                <button
+                    id="toggleSidePanels"
+                    type="button"
+                    aria-expanded="true"
+                    aria-label="Toggle both side panels"
+                >PANELS</button>
             </nav>
         </header>
 
@@ -48,21 +86,50 @@
             <aside class="left-panel" aria-label="Main navigation">
                 <nav class="main-nav">
                     <a class="nav-item active" href="#home" aria-current="page">
-                        <span class="nav-icon" aria-hidden="true">⌂</span><span><strong>Home</strong><small>Overview &amp; assistant</small></span>
+                        <span class="nav-icon" aria-hidden="true">⌂</span>
+                        <span>
+                            <strong>Home</strong>
+                            <small>Overview &amp; assistant</small>
+                        </span>
                     </a>
-                    <a class="nav-item" href="#conversation">
-                        <span class="nav-icon" aria-hidden="true">◌</span><span><strong>Conversations</strong><small>Chat history &amp; context</small></span>
+
+                    <a
+                        class="nav-item"
+                        href="#conversation"
+                        id="openConversationsButton"
+                        aria-controls="conversationDrawer"
+                        aria-expanded="false"
+                    >
+                        <span class="nav-icon" aria-hidden="true">◌</span>
+                        <span>
+                            <strong>Conversations</strong>
+                            <small>Chat history &amp; context</small>
+                        </span>
                     </a>
+
                     <a class="nav-item" href="#memory-activity">
-                        <span class="nav-icon" aria-hidden="true">▤</span><span><strong>Memory</strong><small>Facts, projects &amp; knowledge</small></span>
+                        <span class="nav-icon" aria-hidden="true">▤</span>
+                        <span>
+                            <strong>Memory</strong>
+                            <small>Facts, projects &amp; knowledge</small>
+                        </span>
                     </a>
+
                     <a class="nav-item" href="#modelSettings">
-                        <span class="nav-icon" aria-hidden="true">⚙</span><span><strong>Settings</strong><small>Preferences &amp; configuration</small></span>
+                        <span class="nav-icon" aria-hidden="true">⚙</span>
+                        <span>
+                            <strong>Settings</strong>
+                            <small>Preferences &amp; configuration</small>
+                        </span>
                     </a>
                 </nav>
+
                 <div class="sidebar-build">
                     <span class="build-mark" aria-hidden="true">L</span>
-                    <span><strong>LEWIS CORE</strong><small>Local assistant</small></span>
+                    <span>
+                        <strong>LEWIS CORE</strong>
+                        <small>Local assistant</small>
+                    </span>
                     <span id="coreValue" class="build-state">--</span>
                 </div>
             </aside>
@@ -72,12 +139,25 @@
                     <div class="greeting">
                         <span class="eyebrow">YOUR ASSISTANT</span>
                         <h1>Good day,<br><span>Quen.</span></h1>
-                        <p>I'm LEWIS. What would you like<br class="desktop-break"> to work on today?</p>
+                        <p>
+                            I'm LEWIS. What would you like<br class="desktop-break">
+                            to work on today?
+                        </p>
                     </div>
 
                     <div class="orb-wrap">
-                        <div class="orb" id="coreOrb" data-state="idle" role="img" aria-label="LEWIS assistant idle">
-                            <svg class="orb-geometry" viewBox="0 0 420 420" aria-hidden="true">
+                        <div
+                            class="orb"
+                            id="coreOrb"
+                            data-state="idle"
+                            role="img"
+                            aria-label="LEWIS assistant idle"
+                        >
+                            <svg
+                                class="orb-geometry"
+                                viewBox="0 0 420 420"
+                                aria-hidden="true"
+                            >
                                 <defs>
                                     <radialGradient id="coreLight">
                                         <stop offset="0" stop-color="#fff" stop-opacity=".95"></stop>
@@ -85,166 +165,423 @@
                                         <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
                                     </radialGradient>
                                 </defs>
+
                                 <circle class="orbit orbit-a" cx="210" cy="210" r="176"></circle>
                                 <circle class="orbit orbit-b" cx="210" cy="210" r="155"></circle>
                                 <circle class="orbit orbit-c" cx="210" cy="210" r="133"></circle>
                                 <circle class="orbit orbit-d" cx="210" cy="210" r="105"></circle>
                                 <circle class="orbit orbit-e" cx="210" cy="210" r="77"></circle>
                                 <circle class="orbit orbit-f" cx="210" cy="210" r="49"></circle>
+
                                 <g class="orbit-tilt tilt-one">
                                     <ellipse cx="210" cy="210" rx="190" ry="53"></ellipse>
                                     <circle cx="22" cy="210" r="2.5"></circle>
                                     <circle cx="398" cy="210" r="2"></circle>
                                 </g>
+
                                 <g class="orbit-tilt tilt-two">
                                     <ellipse cx="210" cy="210" rx="173" ry="39"></ellipse>
                                     <circle cx="210" cy="37" r="2"></circle>
                                     <circle cx="210" cy="383" r="2.5"></circle>
                                 </g>
+
                                 <g class="mechanical-ring">
                                     <path d="M210 30v17m0 326v17M30 210h17m326 0h17M83 83l12 12m230 230 12 12m0-254-12 12M95 325l-12 12"></path>
                                     <path d="m210 69 5 9h-10zm0 282 5-9h-10zM69 210l9-5v10zm282 0-9-5v10z"></path>
                                 </g>
-                                <circle class="core-aura" cx="210" cy="210" r="40" fill="url(#coreLight)"></circle>
+
+                                <circle
+                                    class="core-aura"
+                                    cx="210"
+                                    cy="210"
+                                    r="40"
+                                    fill="url(#coreLight)"
+                                ></circle>
                                 <circle class="core-point" cx="210" cy="210" r="5"></circle>
                             </svg>
+
                             <div class="orb-center" aria-hidden="true">
                                 <span class="core-symbol">L</span>
                             </div>
                         </div>
+
                         <span class="orb-caption" id="orbStatusLabel">STANDBY</span>
                     </div>
 
                     <div class="hero-aside">
-                        <div class="process-label"><span>ANALYZING</span><i></i><span>LEARNING</span><i></i><span>ADAPTING</span></div>
+                        <div class="process-label">
+                            <span>ANALYZING</span>
+                            <i></i>
+                            <span>LEARNING</span>
+                            <i></i>
+                            <span>ADAPTING</span>
+                        </div>
                         <div class="process-line"><span></span></div>
                         <p>One system.<br>Infinite possibilities.</p>
                     </div>
                 </div>
 
                 <section class="quick-actions" aria-label="Quick actions">
-                    <div class="section-heading"><span aria-hidden="true">›</span> QUICK ACTIONS</div>
+                    <div class="section-heading">
+                        <span aria-hidden="true">›</span> QUICK ACTIONS
+                    </div>
+
                     <div class="action-grid">
-                        <button class="action-card" type="button" data-prompt="What do you remember about me?">
-                            <span class="action-icon" aria-hidden="true">▤</span><span><strong>Search Memory</strong><small>Find past information</small></span>
+                        <button
+                            class="action-card"
+                            type="button"
+                            data-prompt="What do you remember about me?"
+                        >
+                            <span class="action-icon" aria-hidden="true">▤</span>
+                            <span>
+                                <strong>Search Memory</strong>
+                                <small>Find past information</small>
+                            </span>
                         </button>
-                        <button class="action-card" type="button" data-voice-toggle="true" aria-pressed="false" disabled>
-                            <span class="action-icon" aria-hidden="true">◉</span><span><strong>START VOICE SESSION</strong><small>Enable live microphone input</small></span>
+
+                        <button
+                            class="action-card"
+                            type="button"
+                            data-voice-toggle="true"
+                            aria-pressed="false"
+                            disabled
+                        >
+                            <span class="action-icon" aria-hidden="true">◉</span>
+                            <span>
+                                <strong>START VOICE SESSION</strong>
+                                <small>Enable live microphone input</small>
+                            </span>
                         </button>
                     </div>
                 </section>
 
-                <section id="conversation" class="conversation" aria-label="Conversation">
+                <section
+                    id="conversation"
+                    class="conversation"
+                    aria-label="Conversation"
+                >
                     <div class="conversation-header">
-                        <span class="conversation-title">LEWIS INTERFACE <span class="conversation-state" aria-live="polite" data-state="ready">READY</span></span>
-                        <select id="conversationSelect" aria-label="Open a conversation" disabled>
-                            <option>Loading conversations...</option>
-                        </select>
-                        <button id="newConversationButton" class="expand-chat-button" type="button" title="Create a new conversation">NEW</button>
-                        <button id="expandChatButton" class="expand-chat-button" type="button" aria-expanded="false">EXPAND</button>
+                        <span class="conversation-title">
+                            LEWIS INTERFACE
+                            <span
+                                class="conversation-state"
+                                aria-live="polite"
+                                data-state="ready"
+                            >READY</span>
+                        </span>
+
+                        <button
+                            id="newConversationButton"
+                            class="expand-chat-button"
+                            type="button"
+                            title="Create a new conversation"
+                        >NEW</button>
+
+                        <button
+                            id="expandChatButton"
+                            class="expand-chat-button"
+                            type="button"
+                            aria-expanded="false"
+                        >EXPAND</button>
                     </div>
+
                     <div id="messages" class="messages" aria-live="polite">
                         <div class="message lewis-message">
                             <div class="message-label">LEWIS</div>
                             <div class="message-text">LEWIS initialized. Awaiting input.</div>
                         </div>
                     </div>
+
                     <div class="input-area">
-                        <input id="commandInput" type="text" placeholder="Ask LEWIS anything..." autocomplete="off" aria-label="Message LEWIS">
-                        <button id="sendButton" type="button" aria-label="Send message"><span aria-hidden="true">↑</span><span class="send-label">SEND</span></button>
+                        <input
+                            id="commandInput"
+                            type="text"
+                            placeholder="Ask LEWIS anything..."
+                            autocomplete="off"
+                            aria-label="Message LEWIS"
+                        >
+                        <button
+                            id="sendButton"
+                            type="button"
+                            aria-label="Send message"
+                        >
+                            <span aria-hidden="true">↑</span>
+                            <span class="send-label">SEND</span>
+                        </button>
                     </div>
+
                     <div class="composer-tools">
                         <span class="composer-hint">Enter to send</span>
+
                         <details class="model-tools" id="modelSettings">
                             <summary>AI MODEL</summary>
                             <div class="model-controls">
-                                <label for="aiModelSelect">Use provider/model for new requests</label>
-                                <select id="aiModelSelect" aria-describedby="aiModelSelectionStatus">
+                                <label for="aiModelSelect">
+                                    Use provider/model for new requests
+                                </label>
+                                <select
+                                    id="aiModelSelect"
+                                    aria-describedby="aiModelSelectionStatus"
+                                >
                                     <option>Loading models...</option>
                                 </select>
-                                <button id="applyAIModelButton" class="voice-button" type="button" disabled>APPLY</button>
-                                <span id="aiModelSelectionStatus" role="status" aria-live="polite"></span>
+                                <button
+                                    id="applyAIModelButton"
+                                    class="voice-button"
+                                    type="button"
+                                    disabled
+                                >APPLY</button>
+                                <span
+                                    id="aiModelSelectionStatus"
+                                    role="status"
+                                    aria-live="polite"
+                                ></span>
                             </div>
                         </details>
+
                         <details class="voice-tools" id="voiceSettings">
                             <summary>VOICE SETTINGS</summary>
                             <div class="voice-controls">
-                                <button id="voiceSessionStart" class="voice-button" type="button" title="Start a continuous voice session" disabled>START VOICE SESSION</button>
-                                <button id="voiceSessionStop" class="voice-button" type="button" title="Stop the voice session" disabled>STOP VOICE SESSION</button>
+                                <button
+                                    id="voiceSessionStart"
+                                    class="voice-button"
+                                    type="button"
+                                    title="Start a continuous voice session"
+                                    disabled
+                                >START VOICE SESSION</button>
+
+                                <button
+                                    id="voiceSessionStop"
+                                    class="voice-button"
+                                    type="button"
+                                    title="Stop the voice session"
+                                    disabled
+                                >STOP VOICE SESSION</button>
+
                                 <label class="voice-toggle-label" for="voiceToggle">
-                                    <input id="voiceToggle" type="checkbox" checked><span>VOICE OUTPUT</span>
+                                    <input id="voiceToggle" type="checkbox" checked>
+                                    <span>VOICE OUTPUT</span>
                                 </label>
-                                <button id="stopSpeakingButton" class="voice-button" type="button" disabled>STOP SPEECH</button>
+
+                                <button
+                                    id="stopSpeakingButton"
+                                    class="voice-button"
+                                    type="button"
+                                    disabled
+                                >STOP SPEECH</button>
                             </div>
                         </details>
                     </div>
-                    <div id="voiceError" class="voice-error" role="status" aria-live="polite"></div>
+
+                    <div
+                        id="voiceError"
+                        class="voice-error"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
                 </section>
             </section>
 
             <aside class="right-panel" aria-label="System diagnostics">
                 <section class="diagnostic-card active-tasks-card">
-                    <div class="card-heading"><h2>ACTIVE TASKS</h2><span id="taskCount">0 running</span></div>
+                    <div class="card-heading">
+                        <h2>ACTIVE TASKS</h2>
+                        <span id="taskCount">0 running</span>
+                    </div>
+
                     <div class="task-entry">
                         <span class="task-indicator" id="taskIndicator"></span>
-                        <span><strong id="taskTitle">No active tasks</strong><small id="taskDescription">Waiting for a request</small></span>
+                        <span>
+                            <strong id="taskTitle">No active tasks</strong>
+                            <small id="taskDescription">Waiting for a request</small>
+                        </span>
                         <time id="taskDuration">—</time>
                     </div>
                 </section>
 
                 <section class="diagnostic-card provider-card">
-                    <div class="card-heading"><h2>AI PROVIDER</h2></div>
+                    <div class="card-heading">
+                        <h2>AI PROVIDER</h2>
+                    </div>
+
                     <div class="provider-detail">
                         <span class="provider-mark large" aria-hidden="true">✳</span>
-                        <span><strong id="providerCardName">Gemini</strong><small id="providerCardModel">gemini-3.6-flash</small></span>
+                        <span>
+                            <strong id="providerCardName">Gemini</strong>
+                            <small id="providerCardModel">gemini-3.6-flash</small>
+                        </span>
                         <span class="state-tag" id="providerCardStatus">CHECKING</span>
                     </div>
                 </section>
 
                 <section class="diagnostic-card memory-card" id="memory-activity">
-                    <div class="card-heading"><h2>MEMORY ACTIVITY</h2><span>LOCAL</span></div>
+                    <div class="card-heading">
+                        <h2>MEMORY ACTIVITY</h2>
+                        <span>LOCAL</span>
+                    </div>
+
                     <div class="memory-detail">
                         <span class="detail-icon" aria-hidden="true">▤</span>
-                        <span><strong id="memoryActivityStatus">Checking memory</strong><small id="memoryActivityDetail">Stored items: <b id="memoryCount">--</b></small></span>
+                        <span>
+                            <strong id="memoryActivityStatus">Checking memory</strong>
+                            <small id="memoryActivityDetail">
+                                Stored items: <b id="memoryCount">--</b>
+                            </small>
+                        </span>
                     </div>
-                    <p class="card-note">Recent memory events are not reported by the core.</p>
+
+                    <p class="card-note">
+                        Recent memory events are not reported by the core.
+                    </p>
                 </section>
 
                 <section class="diagnostic-card voice-card">
-                    <div class="card-heading"><h2>VOICE</h2><span id="voiceCardStatus">UNAVAILABLE</span></div>
+                    <div class="card-heading">
+                        <h2>VOICE</h2>
+                        <span id="voiceCardStatus">UNAVAILABLE</span>
+                    </div>
+
                     <div class="voice-activity">
                         <div class="waveform" aria-hidden="true">
-                            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i><i></i>
+                            <i></i><i></i><i></i><i></i><i></i><i></i>
                         </div>
                         <span class="voice-mic" aria-hidden="true">♩</span>
                     </div>
-                    <div class="voice-directions"><span>Input <b id="voiceInputState">Inactive</b></span><span>Output <b id="voiceOutputStatus">On</b></span></div>
-                </section>
 
+                    <div class="voice-directions">
+                        <span>Input <b id="voiceInputState">Inactive</b></span>
+                        <span>Output <b id="voiceOutputStatus">On</b></span>
+                    </div>
+                </section>
             </aside>
         </section>
+
+        <!-- Conversations drawer backdrop -->
+        <div
+            id="conversationDrawerBackdrop"
+            class="conversation-drawer-backdrop"
+            hidden
+        ></div>
+
+        <!-- Conversations drawer -->
+        <aside
+            id="conversationDrawer"
+            class="conversation-drawer"
+            hidden
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="conversationDrawerTitle"
+            aria-hidden="true"
+            inert
+        >
+            <div class="conversation-drawer-header">
+                <div>
+                    <span class="eyebrow">LEWIS CORE</span>
+                    <h2 id="conversationDrawerTitle">CONVERSATIONS</h2>
+                    <p>Open and manage your saved conversations.</p>
+                </div>
+
+                <button
+                    id="closeConversationDrawerButton"
+                    class="expand-chat-button"
+                    type="button"
+                    aria-label="Close conversations"
+                >CLOSE</button>
+            </div>
+
+            <div class="conversation-drawer-toolbar">
+                <span id="conversationCount">0 SAVED</span>
+                <span class="conversation-drawer-note">LOCAL HISTORY</span>
+            </div>
+
+            <div
+                id="conversationDrawerStatus"
+                class="conversation-drawer-status"
+                role="status"
+                aria-live="polite"
+            ></div>
+
+            <div
+                id="conversationList"
+                class="conversation-list"
+                aria-label="Saved conversations"
+            >
+                <p class="conversation-list-empty">
+                    Loading conversations...
+                </p>
+            </div>
+
+            <p class="conversation-drawer-footer">
+                Deleting a conversation removes its chat history, not LEWIS's
+                long-term memory.
+            </p>
+        </aside>
 
         <footer class="telemetry-footer" id="telemetry">
             <section class="telemetry-block system-telemetry">
                 <h2>SYSTEM TELEMETRY</h2>
+
                 <div class="metric-list">
-                    <div class="metric"><span class="metric-icon" aria-hidden="true">▧</span><span><small>CPU</small><strong id="cpuValue">--</strong></span><span class="mini-meter"><i id="cpuMeter"></i></span></div>
-                    <div class="metric"><span class="metric-icon" aria-hidden="true">▤</span><span><small>Memory</small><strong id="ramValue">--</strong></span><span class="mini-meter"><i id="ramMeter"></i></span></div>
-                    <div class="metric metric-storage"><span class="metric-icon" aria-hidden="true">▤</span><span><small>Storage</small><strong>Not reported</strong></span></div>
-                    <div class="metric metric-network"><span class="metric-icon" aria-hidden="true">⌁</span><span><small>Network</small><strong>Not reported</strong></span></div>
+                    <div class="metric">
+                        <span class="metric-icon" aria-hidden="true">▧</span>
+                        <span>
+                            <small>CPU</small>
+                            <strong id="cpuValue">--</strong>
+                        </span>
+                        <span class="mini-meter"><i id="cpuMeter"></i></span>
+                    </div>
+
+                    <div class="metric">
+                        <span class="metric-icon" aria-hidden="true">▤</span>
+                        <span>
+                            <small>Memory</small>
+                            <strong id="ramValue">--</strong>
+                        </span>
+                        <span class="mini-meter"><i id="ramMeter"></i></span>
+                    </div>
+
+                    <div class="metric metric-storage">
+                        <span class="metric-icon" aria-hidden="true">▤</span>
+                        <span>
+                            <small>Storage</small>
+                            <strong>Not reported</strong>
+                        </span>
+                    </div>
+
+                    <div class="metric metric-network">
+                        <span class="metric-icon" aria-hidden="true">⌁</span>
+                        <span>
+                            <small>Network</small>
+                            <strong>Not reported</strong>
+                        </span>
+                    </div>
                 </div>
             </section>
+
             <section class="telemetry-block current-task">
                 <h2>CURRENT TASK</h2>
-                <div class="task-progress-copy"><span id="footerTaskStatus">No active task</span><span id="footerTaskPercent">—</span></div>
+                <div class="task-progress-copy">
+                    <span id="footerTaskStatus">No active task</span>
+                    <span id="footerTaskPercent">—</span>
+                </div>
                 <div class="progress-track"><i id="taskProgressBar"></i></div>
             </section>
+
             <section class="telemetry-block notifications">
-                <h2>NOTIFICATIONS <span class="notification-count" id="notificationCount">0</span></h2>
-                <div class="system-log" aria-live="polite"><span class="empty-log">No recent system events</span></div>
+                <h2>
+                    NOTIFICATIONS
+                    <span class="notification-count" id="notificationCount">0</span>
+                </h2>
+                <div class="system-log" aria-live="polite">
+                    <span class="empty-log">No recent system events</span>
+                </div>
             </section>
         </footer>
     </main>
+
     <script src="app.js"></script>
 </body>
 </html>

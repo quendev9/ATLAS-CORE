@@ -1,4 +1,3 @@
-
 import json
 import os
 import queue
@@ -29,9 +28,11 @@ sys.path.insert(0, str(PROJECT_DIR))
 from core.event_logger import get_events, log_event
 from memory.conversations import (
     create_conversation,
+    delete_conversation,
     get_active_conversation_id,
     get_conversation,
     list_conversations,
+    rename_conversation,
     set_active_conversation,
 )
 
@@ -568,6 +569,14 @@ class LewisHandler(BaseHTTPRequestHandler):
             self.handle_conversation_select()
             return
 
+        if path == "/api/conversations/rename":
+            self.handle_conversation_rename()
+            return
+
+        if path == "/api/conversations/delete":
+            self.handle_conversation_delete()
+            return
+
         if path == "/api/voice/listen":
             self.handle_voice_listen()
             return
@@ -653,6 +662,87 @@ class LewisHandler(BaseHTTPRequestHandler):
             send_json(
                 self,
                 {"error": "Could not open the conversation."},
+                500,
+            )
+
+    def handle_conversation_rename(self):
+        data = read_json_body(self)
+
+        if data is None:
+            send_json(self, {"error": "Invalid JSON."}, 400)
+            return
+
+        conversation_id = data.get("id")
+        title = data.get("title")
+
+        if not isinstance(conversation_id, str) or not conversation_id.strip():
+            send_json(self, {"error": "Provide a conversation ID."}, 400)
+            return
+
+        if (
+            not isinstance(title, str)
+            or not title.strip()
+            or len(title.strip()) > 120
+        ):
+            send_json(
+                self,
+                {"error": "Title must contain 1–120 characters."},
+                400,
+            )
+            return
+
+        try:
+            conversation = rename_conversation(
+                conversation_id,
+                title.strip(),
+            )
+            send_json(self, {"conversation": conversation})
+        except ValueError:
+            send_json(self, {"error": "Conversation not found."}, 404)
+        except Exception as error:
+            print("LEWIS CONVERSATION RENAME ERROR:", type(error).__name__)
+            send_json(
+                self,
+                {"error": "Could not rename the conversation."},
+                500,
+            )
+
+    def handle_conversation_delete(self):
+        data = read_json_body(self)
+
+        if data is None:
+            send_json(self, {"error": "Invalid JSON."}, 400)
+            return
+
+        conversation_id = data.get("id")
+
+        if not isinstance(conversation_id, str) or not conversation_id.strip():
+            send_json(self, {"error": "Provide a conversation ID."}, 400)
+            return
+
+        if not LEWIS_AVAILABLE or lewis is None:
+            send_json(self, {"error": "LEWIS Core is unavailable."}, 503)
+            return
+
+        try:
+            result = delete_conversation(conversation_id)
+            active_id = result["active_conversation_id"]
+
+            lewis.active_conversation_id = active_id
+
+            if active_id:
+                active_conversation = get_conversation(active_id)
+                if active_conversation and active_conversation.get("project"):
+                    lewis.active_project = active_conversation["project"]
+
+            send_json(self, result)
+        except ValueError:
+            send_json(self, {"error": "Conversation not found."}, 404)
+        except Exception as error:
+            print("LEWIS CONVERSATION DELETE ERROR:", type(error).__name__)
+            send_json(
+                self,
+                {"error": "Could not delete the conversation."},
                 500,
             )
 

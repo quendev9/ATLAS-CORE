@@ -90,9 +90,7 @@ def _normalize_conversation(conversation):
     if not isinstance(conversation["messages"], list):
         raise ValueError("Conversation messages must be a list.")
 
-    conversation["updated_at"] = _utc_now()
     return conversation
-
 
 def list_conversations():
     data = load_conversations()
@@ -155,6 +153,51 @@ def rename_conversation(conversation_id, new_title):
             return conversation
     raise ValueError(f"Could not find conversation '{conversation_id}'.")
 
+def delete_conversation(conversation_id):
+    if not isinstance(conversation_id, str) or not conversation_id.strip():
+        raise ValueError("A valid conversation ID is required.")
+
+    data = load_conversations()
+    conversations = data.get("conversations", [])
+
+    target = next(
+        (
+            conversation
+            for conversation in conversations
+            if conversation.get("id") == conversation_id
+        ),
+        None,
+    )
+
+    if target is None:
+        raise ValueError(f"Could not find conversation '{conversation_id}'.")
+
+    data["conversations"] = [
+        conversation
+        for conversation in conversations
+        if conversation.get("id") != conversation_id
+    ]
+
+    if data.get("active_conversation_id") == conversation_id:
+        remaining = data["conversations"]
+
+        if remaining:
+            remaining.sort(
+                key=lambda conversation: str(
+                    conversation.get("updated_at", "")
+                ),
+                reverse=True,
+            )
+            data["active_conversation_id"] = remaining[0].get("id")
+        else:
+            data["active_conversation_id"] = None
+
+    save_conversations(data)
+
+    return {
+        "deleted_id": conversation_id,
+        "active_conversation_id": data.get("active_conversation_id"),
+    }
 
 def add_message(conversation_id, role, content, **metadata):
     if not isinstance(role, str) or not role.strip():

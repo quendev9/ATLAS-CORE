@@ -444,6 +444,37 @@ class ConversationIntegrityTests(unittest.TestCase):
         self.assertIn("Second-conversation detail.", context)
         self.assertNotIn("Private first-conversation detail.", context)
 
+    def test_deleting_conversation_preserves_long_term_memory(self):
+        remember_memory("favorite color", "blue", "preference")
+        project_memory.remember_project_fact(
+            "ATLAS",
+            "LEWIS",
+            "memory deletion check",
+            "preserved",
+        )
+        personal_before = get_memories()
+        project_before = project_memory.get_project_facts("ATLAS")
+        conversation = conversations.create_conversation(
+            "Disposable history",
+            project="ATLAS",
+        )
+        conversations.add_message(
+            conversation["id"],
+            "user",
+            "This is only conversation history.",
+        )
+
+        conversations.delete_conversation(conversation["id"])
+
+        self.assertEqual(get_memories(), personal_before)
+        self.assertEqual(
+            project_memory.get_project_facts("ATLAS"),
+            project_before,
+        )
+        self.assertIsNone(
+            conversations.get_conversation(conversation["id"])
+        )
+
     def test_user_correction_updates_project_decision_history(self):
         lewis = Lewis()
         with patch(
